@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Authentication System | Login</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🔐 Authentication System</h1>
+
+        <h2>Welcome Back!</h2>
+
+        <p class="subtitle">
+            Sign in to securely access your personalized dashboard.
+        </p>
+
+        <input
+            type="text"
+            id="loginUsername"
+            placeholder="Enter Username"
+        >
+
+        <input
+            type="password"
+            id="loginPassword"
+            placeholder="Enter Password"
+        >
+
+        <button onclick="loginUser()">
+            Login
+        </button>
+
+        <p id="loginMessage"></p>
+
+        <p class="link">
+            Don't have an account?
+            <a href="/static/register.html">
+                Register Here
+            </a>
+        </p>
+
+        <div class="footer">
+
+            <p class="quote">
+                <em>
+                    "Every secure journey begins with a trusted login."
+                </em>
+            </p>
+
+            <br>
+
+            <p class="developer">
+                Developed by
+                <strong>Sudharsun</strong>
+            </p>
+
+        </div>
+
+    </div>
+
+    <script src="/static/script.js"></script>
+
+</body>
+
+</html>
