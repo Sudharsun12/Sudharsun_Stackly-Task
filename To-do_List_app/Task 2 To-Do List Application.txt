@@ -1,0 +1,26 @@
+Task 2: To-Do List Application Difficulties
+
+I ran into a few difficulties when working on this project. Implementing the filter feature (All, Pending, and Completed) was the initial hurdle. At first, I didn't know how to show various task sets without changing the initial task list. In order to overcome this, I created a temporary filtered list depending on the chosen option using JavaScript's filter() method, maintaining the original data.
+
+Using localStorage presented another difficulty. Initially, every time I refreshed the page, the chores vanished. I was able to store the task array in the browser and retrieve it each time the program loaded after understanding how JSON.stringify() and JSON.parse() operate.
+
+Additionally, I had some trouble dynamically updating the user interface After adding, removing, or finishing a job, I also had some trouble dynamically updating the user interface. At first, some of the changes took some time to manifest. In order to ensure that the task list was always updated with the most recent information, I created a separate displayTasks() function and called it after each activity.
+
+I also encountered some problems with the CSS layout and correctly aligning the task cards throughout development. I was able to create a more responsive and clear interface by testing the layout on various screen sizes and modifying the Flexbox parameters.
+
+How I Solved the Challenges
+
+Broke the application into smaller functions instead of writing all the logic together.
+Used browser Developer Tools and the JavaScript console to identify and fix errors.
+Tested each feature individually before combining everything into the final application.
+Saved data to localStorage after every change and reloaded it when the page opened.
+Refactored the code to make it easier to understand and maintain.
+What I Learned
+
+This project helped me understand how JavaScript interacts with the Document Object Model (DOM) to create dynamic web applications. I learned how to store and retrieve data using localStorage, handle user events with addEventListener(), manipulate arrays using methods such as push(), filter(), and some(), and update the user interface dynamically without reloading the page.
+
+I also gained confidence in organizing JavaScript code into reusable functions, which makes the application easier to maintain and debug.
+
+Overall Opinion
+
+This project was more challenging than the Student Registration Form because it required managing application data, updating the interface dynamically, and maintaining the application's state after page refreshes. Although I faced a few implementation challenges, solving them improved my understanding of JavaScript fundamentals and gave me practical experience in building an interactive web application. Overall, this task strengthened my problem-solving skills and increased my confidence in front-end development.

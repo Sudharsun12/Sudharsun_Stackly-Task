@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Web Interface</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🎓 Student Web Interface</h1>
+        <p class="subtitle">Flask • MySQL • Full Stack Application</p>
+
+        <!-- ==========================
+             Dashboard
+        =========================== -->
+
+        <div class="dashboard">
+
+            <div class="card">
+                <h3>Total Students</h3>
+                <h2 id="totalStudents">0</h2>
+            </div>
+
+            <div class="card">
+                <h3>Python</h3>
+                <h2 id="pythonCount">0</h2>
+            </div>
+
+            <div class="card">
+                <h3>Java</h3>
+                <h2 id="javaCount">0</h2>
+            </div>
+
+            <div class="card">
+                <h3>React</h3>
+                <h2 id="reactCount">0</h2>
+            </div>
+
+        </div>
+
+        <!-- ==========================
+             Search Bar
+        =========================== -->
+
+        <input
+            type="text"
+            id="searchInput"
+            placeholder="Search by Name or Course">
+
+        <!-- ==========================
+             Student Form
+        =========================== -->
+
+        <form id="studentForm">
+
+            <input
+                type="text"
+                id="full_name"
+                placeholder="Full Name"
+                required>
+
+            <input
+                type="email"
+                id="email"
+                placeholder="Email"
+                required>
+
+            <input
+                type="text"
+                id="phone"
+                placeholder="Phone Number"
+                required>
+
+            <select id="course" required>
+                <option value="">Select Course</option>
+                <option value="Python">Python</option>
+                <option value="Java">Java</option>
+                <option value="React">React</option>
+                <option value="Flask">Flask</option>
+            </select>
+
+            <button 
+            type="submit"
+            id="submitBtn"
+            class="submit-btn">
+            Add Student
+            </button>
+
+        </form>
+
+        <!-- ==========================
+             Student Table
+        =========================== -->
+
+        <div class="table-container">
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>ID</th>
+
+                    <th>Name</th>
+
+                    <th>Email</th>
+
+                    <th>Phone</th>
+
+                    <th>Course</th>
+
+                    <th>Enrolled On</th>
+
+                    <th>Actions</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody id="studentTable">
+
+                <!-- JavaScript will insert rows here -->
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <script src="script.js"></script>
+    <footer class="footer">
+    <p>Developed by <strong>Sudharsun A</strong> | Software Engineer</p>
+    </footer>
+
+</body>
+
+</html>
