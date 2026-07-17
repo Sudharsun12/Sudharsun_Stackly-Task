@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Daily Tasks</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <header>
+
+            <h1>My Daily Tasks</h1>
+
+            <p class="subtitle">
+                Stay organized, stay productive, one task at a time.
+            </p>
+
+        </header>
+
+        <section class="input-section">
+
+            <input
+                type="text"
+                id="taskInput"
+                placeholder="Enter your task">
+
+            <select id="priority">
+
+                <option value="High">🔴 High</option>
+
+                <option value="Medium" selected>🟡 Medium</option>
+
+                <option value="Low">🟢 Low</option>
+
+            </select>
+
+            <button id="addBtn">
+                Add Task
+            </button>
+
+        </section>
+
+        <section class="filter">
+
+            <button class="active" data-filter="all">
+                All
+            </button>
+
+            <button data-filter="pending">
+                Pending
+            </button>
+
+            <button data-filter="completed">
+                Completed
+            </button>
+
+        </section>
+
+        <section class="counter">
+
+            <p>
+
+                <strong>Total Tasks :</strong>
+
+                <span id="total">0</span>
+
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+
+                <strong>Pending :</strong>
+
+                <span id="pending">0</span>
+
+            </p>
+
+        </section>
+
+        <main id="taskContainer">
+
+            <!-- Tasks will be created dynamically using JavaScript -->
+
+        </main>
+
+        <footer>
+
+            <p>
+                Designed &amp; Developed by
+                <strong>Sudharsun A</strong>
+            </p>
+
+        </footer>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
