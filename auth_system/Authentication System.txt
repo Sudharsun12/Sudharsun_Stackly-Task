@@ -1,0 +1,24 @@
+Authentication System
+ 
+Full Stack Project-Task-4
+-------Done By Sudharsun
+
+1. What is password hashing and why is storing plain text passwords dangerous?
+From my Understanding the Password hashing is the process of converting a password into an irreversible encrypted string using a hashing algorithm such as Bcrypt. Like we are converting the binary file just a refernce i am telling. During user registration, the original password is hashed before it is stored in the database. When a user logs in, Flask-Bcrypt hashes the entered password internally and compares it with the stored hash. If both match, authentication is successful.
+Storing passwords in plain text is dangerous because anyone with access to the database can immediately view users' passwords. If the database is compromised, attackers can use those passwords to access other accounts where users may have reused the same password. Hashing protects user credentials by ensuring that the original password cannot be recovered from the stored value.
+
+2. What is a session and how does Flask use it?
+After a user successfully logs in, a session is used to save their identification. Flask saves critical user data, such the user ID, username, and role, in a secure session rather than requiring the user to submit their credentials on each request.
+
+Flask determines if the session is active when the user hits protected routes, such as the dashboard or profile. Access is allowed if the session is legitimate. If not, the user is sent to the login page and receives an unlawful response from the program. When you log out, the session is cleared, making it impossible to view protected pages again.
+
+3. What happens on your backend when a wrong password is entered?
+The backend looks for the supplied username in the database when it receives a login request. Flask-Bcrypt uses check_password_hash() to compare the entered password with the stored hashed password if the username is present.
+
+Flask does not establish a session if the passwords do not match; instead, it sends an HTTP 401 Unauthorized response with the message "Invalid Username or Password." This keeps stored passwords safe and guarantees that only users with the right credentials can access protected services.
+
+4. Challenges Faced In this Project and How I Overcame Them:
+I ran into a number of issues with frontend-backend interaction, route setup, session management, and password authentication while working on this project. At first, I had problems with wrong static file locations, which led to 404 Not Found errors, and incorrect file references, which prevented JavaScript functions from loading.Debugging the login feature, which prevented previously registered users from authenticating since their password hashes were created before the authentication logic was complete, was a significant difficulty. I fixed these problems by carefully checking Flask routes, fixing the project structure, utilizing browser developer tools to validate API calls, and using debug logs to test backend responses.  These challenges increased my confidence in creating safe full-stack online apps while solidifying my knowledge of Flask routing, password hashing, session handling, and methodical debugging approaches.
+
+5.Project Implementation:
+This project is a secure User Login and Authentication System developed using Python, Flask, MySQL, HTML, CSS, and JavaScript. The application allows users to register by creating a new account, where passwords are securely hashed using Flask-Bcrypt before being stored in the MySQL database. Registered users can log in using their credentials, and upon successful authentication, a Flask session is created to provide access to protected pages such as the dashboard and profile. The dashboard displays user-specific information, including the username, role, email, and account creation date. A logout feature securely clears the active session, ensuring that protected resources cannot be accessed without authentication. The frontend communicates with the backend using the Fetch API, providing a smooth user experience without page reloads.
