@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Authentication System | Dashboard</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<div class="dashboard">
+
+    <h1>🎉 Authentication Dashboard</h1>
+
+    <p>
+        Welcome back! Your account has been successfully authenticated.
+    </p>
+
+    <div class="cards">
+
+        <div class="card">
+
+            <h3>👤 Username</h3>
+
+            <p id="username">
+                Loading...
+            </p>
+
+        </div>
+
+        <div class="card">
+
+            <h3>📧 Email</h3>
+
+            <p id="email">
+                Loading...
+            </p>
+
+        </div>
+
+        <div class="card">
+
+            <h3>🛡 Role</h3>
+
+            <p id="role">
+                Loading...
+            </p>
+
+        </div>
+
+        <div class="card">
+
+            <h3>📅 Joined On</h3>
+
+            <p id="created_at">
+                Loading...
+            </p>
+
+        </div>
+
+    </div>
+
+    <div class="success">
+
+        ✅ Session Active
+
+    </div>
+
+    <button
+        class="logout"
+        onclick="logoutUser()">
+
+        Logout
+
+    </button>
+
+    <div class="footer">
+
+        <p>
+
+            <em>
+
+                "Security isn't just about protecting data.
+                It's about building trust."
+
+            </em>
+
+        </p>
+
+        <br>
+
+        <p>
+
+            Developed by
+            <strong>Sudharsun</strong>
+
+        </p>
+
+    </div>
+
+</div>
+
+<script src="/static/script.js"></script>
+
+<script>
+
+loadDashboard();
+
+</script>
+
+</body>
+
+</html>
