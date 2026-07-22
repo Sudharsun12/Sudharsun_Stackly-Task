@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Expense Tracker | Dashboard</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<!-- ================= NAVBAR ================= -->
+
+<nav>
+
+    <h2>💰 Expense Tracker</h2>
+
+    <div class="user-box">
+
+        <div class="user-avatar">
+            👤
+        </div>
+
+        <div>
+
+            <span class="welcome-text">
+                Welcome Back
+            </span>
+
+            <h3 id="welcomeUser">
+                User
+            </h3>
+
+        </div>
+
+        <button onclick="logout()">
+            Logout
+        </button>
+
+    </div>
+
+</nav>
+
+<!-- ================= QUOTE ================= -->
+
+<div class="quote">
+
+    <strong>💡 Financial Tip</strong>
+
+    <br><br>
+
+    "A budget isn't about limiting yourself, it's about making the things that excite you possible."
+
+</div>
+
+<!-- ================= SUMMARY CARDS ================= -->
+
+<div class="dashboard">
+
+    <div class="summary-card">
+
+        <h3>📋 Total Expenses</h3>
+
+        <h1 id="expenseCount">
+            0
+        </h1>
+
+    </div>
+
+    <div class="summary-card">
+
+        <h3>💰 Total Amount</h3>
+
+        <h1 id="totalAmount">
+            ₹0
+        </h1>
+
+    </div>
+
+    <div class="summary-card">
+
+        <h3>🔥 Highest Expense</h3>
+
+        <h1 id="highestExpense">
+            ₹0
+        </h1>
+
+    </div>
+
+    <div class="summary-card">
+
+        <h3>📂 Categories</h3>
+
+        <h1 id="categoryCount">
+            0
+        </h1>
+
+    </div>
+
+</div>
+
+<!-- ================= BUTTON ================= -->
+
+<div class="button-wrapper">
+
+    <a href="/expenses-page" class="button">
+
+        Manage Expenses →
+
+    </a>
+
+</div>
+
+<!-- ================= CATEGORY SECTION ================= -->
+
+<section>
+
+    <h2>
+
+        📊 Category Analytics
+
+    </h2>
+
+    <div id="categoryContainer">
+
+    </div>
+
+</section>
+
+<!-- ================= RECENT EXPENSES ================= -->
+
+<section>
+
+    <h2>
+
+        🧾 Recent Expenses
+
+    </h2>
+
+    <table>
+
+        <thead>
+
+            <tr>
+
+                <th>Title</th>
+
+                <th>Amount</th>
+
+                <th>Category</th>
+
+                <th>Date</th>
+
+            </tr>
+
+        </thead>
+
+        <tbody id="recentExpenses">
+
+        </tbody>
+
+    </table>
+
+</section>
+
+<!-- ================= FOOTER ================= -->
+
+<footer>
+
+    <p>
+
+        © 2026 Expense Tracker
+
+    </p>
+
+    <br>
+
+    <p>
+
+        Developed with ❤️ by
+
+        <strong>Sudharsun A</strong>
+
+    </p>
+
+</footer>
+
+<script src="/static/script.js"></script>
+
+</body>
+
+</html>

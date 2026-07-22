@@ -1,0 +1,1214 @@
+/* =====================================================
+   PERSONAL EXPENSE TRACKER
+   Part 1 - Global + Login/Register + Navbar
+===================================================== */
+
+/* Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
+}
+
+:root{
+
+    --primary:#2563EB;
+    --success:#10B981;
+    --warning:#F59E0B;
+    --danger:#EF4444;
+    --purple:#8B5CF6;
+
+    --dark:#1E293B;
+    --dark2:#334155;
+
+    --bg:#F5F7FB;
+    --card:#FFFFFF;
+
+    --text:#1F2937;
+    --subtext:#6B7280;
+
+    --shadow:0 10px 25px rgba(0,0,0,.08);
+
+    --radius:16px;
+
+}
+
+body{
+
+    background:var(--bg);
+
+    color:var(--text);
+
+    min-height:100vh;
+
+}
+
+/* Scrollbar */
+
+::-webkit-scrollbar{
+
+    width:9px;
+
+}
+
+::-webkit-scrollbar-thumb{
+
+    background:#cbd5e1;
+
+    border-radius:10px;
+
+}
+
+::-webkit-scrollbar-thumb:hover{
+
+    background:#94a3b8;
+
+}
+
+/* ===============================
+      LOGIN / REGISTER
+================================ */
+
+.container{
+
+    width:100%;
+
+    min-height:100vh;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    padding:40px;
+
+}
+
+.card{
+
+    width:440px;
+
+    background:var(--card);
+
+    border-radius:20px;
+
+    padding:40px;
+
+    box-shadow:var(--shadow);
+
+}
+
+.card h1{
+
+    text-align:center;
+
+    color:var(--dark);
+
+    margin-bottom:8px;
+
+    font-size:32px;
+
+}
+
+.card h2{
+
+    text-align:center;
+
+    color:var(--subtext);
+
+    font-size:18px;
+
+    margin-bottom:15px;
+
+    font-weight:500;
+
+}
+
+.page-quote{
+
+    text-align:center;
+
+    color:#64748b;
+
+    margin-bottom:30px;
+
+    font-size:14px;
+
+    font-style:italic;
+
+}
+
+input,
+select,
+textarea{
+
+    width:100%;
+
+    padding:14px 16px;
+
+    margin-bottom:18px;
+
+    border:1px solid #dbe3ee;
+
+    border-radius:12px;
+
+    font-size:15px;
+
+    transition:.3s;
+
+    background:#fafafa;
+
+}
+
+input:focus,
+select:focus,
+textarea:focus{
+
+    outline:none;
+
+    border-color:var(--primary);
+
+    background:white;
+
+    box-shadow:0 0 0 4px rgba(37,99,235,.12);
+
+}
+
+textarea{
+
+    resize:none;
+
+}
+
+button{
+
+    width:100%;
+
+    border:none;
+
+    padding:14px;
+
+    border-radius:12px;
+
+    background:var(--primary);
+
+    color:white;
+
+    font-size:16px;
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:.3s;
+
+}
+
+button:hover{
+
+    background:#1d4ed8;
+
+    transform:translateY(-2px);
+
+}
+
+.card p{
+
+    margin-top:20px;
+
+    text-align:center;
+
+    color:var(--subtext);
+
+}
+
+.card a{
+
+    color:var(--primary);
+
+    text-decoration:none;
+
+    font-weight:600;
+
+}
+
+.card a:hover{
+
+    text-decoration:underline;
+
+}
+
+/* ===============================
+         NAVIGATION
+================================ */
+
+nav{
+
+    width:100%;
+
+    background:linear-gradient(135deg,#1E293B,#334155);
+
+    color:white;
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:18px 45px;
+
+    box-shadow:0 5px 15px rgba(0,0,0,.15);
+
+}
+
+nav h2{
+
+    font-size:28px;
+
+    font-weight:700;
+
+    letter-spacing:.5px;
+
+}
+
+.user-box{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:15px;
+
+}
+
+.user-avatar{
+
+    width:52px;
+
+    height:52px;
+
+    border-radius:50%;
+
+    background:linear-gradient(135deg,#10B981,#059669);
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    color:white;
+
+    font-size:22px;
+
+    font-weight:700;
+
+}
+
+.welcome-text{
+
+    font-size:13px;
+
+    color:#cbd5e1;
+
+}
+
+#welcomeUser{
+
+    margin-top:3px;
+
+    font-size:18px;
+
+    color:white;
+
+}
+
+nav button{
+
+    width:auto;
+
+    padding:10px 22px;
+
+    background:var(--danger);
+
+    border-radius:10px;
+
+}
+
+nav button:hover{
+
+    background:#dc2626;
+
+}
+
+/* ===============================
+         QUOTE CARD
+================================ */
+
+.quote{
+
+    width:92%;
+
+    max-width:1200px;
+
+    margin:28px auto;
+
+    background:white;
+
+    padding:22px 28px;
+
+    border-left:6px solid var(--success);
+
+    border-radius:16px;
+
+    box-shadow:var(--shadow);
+
+    font-size:17px;
+
+    color:#475569;
+
+    line-height:1.8;
+
+}
+/* =====================================================
+   PART 2 - DASHBOARD
+===================================================== */
+
+/* Dashboard */
+
+.dashboard{
+
+    width:92%;
+    max-width:1300px;
+
+    margin:35px auto;
+
+    display:grid;
+
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+
+    gap:25px;
+
+}
+
+/* Summary Cards */
+
+.summary-card{
+
+    color:white;
+
+    border-radius:18px;
+
+    padding:28px;
+
+    position:relative;
+
+    overflow:hidden;
+
+    transition:.35s;
+
+    box-shadow:0 12px 30px rgba(0,0,0,.12);
+
+}
+
+.summary-card::before{
+
+    content:"";
+
+    position:absolute;
+
+    width:150px;
+
+    height:150px;
+
+    background:rgba(255,255,255,.12);
+
+    border-radius:50%;
+
+    right:-45px;
+
+    top:-45px;
+
+}
+
+.summary-card:hover{
+
+    transform:translateY(-8px);
+
+}
+
+.summary-card:nth-child(1){
+
+    background:linear-gradient(135deg,#2563EB,#3B82F6);
+
+}
+
+.summary-card:nth-child(2){
+
+    background:linear-gradient(135deg,#10B981,#34D399);
+
+}
+
+.summary-card:nth-child(3){
+
+    background:linear-gradient(135deg,#F97316,#FB923C);
+
+}
+
+.summary-card:nth-child(4){
+
+    background:linear-gradient(135deg,#8B5CF6,#A855F7);
+
+}
+
+.summary-card h3{
+
+    font-size:17px;
+
+    font-weight:500;
+
+    opacity:.95;
+
+}
+
+.summary-card h1{
+
+    margin-top:20px;
+
+    font-size:38px;
+
+    font-weight:700;
+
+}
+
+/* ===============================
+      MANAGE BUTTON
+================================ */
+
+.button-wrapper{
+
+    display:flex;
+
+    justify-content:center;
+
+    margin:35px 0;
+
+}
+
+.button{
+
+    display:inline-block;
+
+    background:linear-gradient(135deg,#10B981,#059669);
+
+    color:white;
+
+    padding:15px 38px;
+
+    border-radius:14px;
+
+    font-size:17px;
+
+    font-weight:600;
+
+    text-decoration:none;
+
+    transition:.35s;
+
+    box-shadow:0 10px 25px rgba(16,185,129,.30);
+
+}
+
+.button:hover{
+
+    transform:translateY(-4px);
+
+    box-shadow:0 16px 35px rgba(16,185,129,.45);
+
+}
+
+/* ===============================
+       CONTENT SECTIONS
+================================ */
+
+section{
+
+    width:92%;
+
+    max-width:1300px;
+
+    margin:35px auto;
+
+    background:white;
+
+    border-radius:18px;
+
+    padding:28px;
+
+    box-shadow:var(--shadow);
+
+}
+
+section h2{
+
+    margin-bottom:22px;
+
+    color:var(--dark);
+
+    font-size:24px;
+
+}
+
+/* ===============================
+     CATEGORY PROGRESS
+================================ */
+
+.category-item{
+
+    margin-bottom:24px;
+
+}
+
+.category-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    margin-bottom:10px;
+
+    font-weight:600;
+
+    color:#374151;
+
+}
+
+.progress{
+
+    width:100%;
+
+    height:18px;
+
+    background:#E5E7EB;
+
+    border-radius:20px;
+
+    overflow:hidden;
+
+}
+
+.progress-bar{
+
+    height:100%;
+
+    border-radius:20px;
+
+    color:white;
+
+    font-size:11px;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    font-weight:600;
+
+    transition:width .6s;
+
+}
+
+.progress-bar.food{
+
+    background:linear-gradient(90deg,#10B981,#34D399);
+
+}
+
+.progress-bar.shopping{
+
+    background:linear-gradient(90deg,#8B5CF6,#A855F7);
+
+}
+
+.progress-bar.transport{
+
+    background:linear-gradient(90deg,#2563EB,#60A5FA);
+
+}
+
+.progress-bar.health{
+
+    background:linear-gradient(90deg,#EF4444,#F87171);
+
+}
+
+.progress-bar.education{
+
+    background:linear-gradient(90deg,#F59E0B,#FBBF24);
+
+}
+
+.progress-bar.other{
+
+    background:linear-gradient(90deg,#64748B,#94A3B8);
+
+}
+
+/* ===============================
+        RECENT TABLE
+================================ */
+
+table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+    overflow:hidden;
+
+}
+
+thead{
+
+    background:#1E293B;
+
+    color:white;
+
+}
+
+th{
+
+    padding:16px;
+
+    font-size:15px;
+
+    font-weight:600;
+
+}
+
+td{
+
+    padding:16px;
+
+    text-align:center;
+
+    border-bottom:1px solid #E5E7EB;
+
+}
+
+tbody tr{
+
+    transition:.25s;
+
+}
+
+tbody tr:hover{
+
+    background:#F8FAFC;
+
+}
+
+/* ===============================
+      TABLE BUTTONS
+================================ */
+
+.edit-btn{
+
+    background:#F59E0B;
+
+    color:white;
+
+    padding:8px 16px;
+
+    border:none;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+    margin-right:6px;
+
+}
+
+.edit-btn:hover{
+
+    background:#d97706;
+
+}
+
+.delete-btn{
+
+    background:#EF4444;
+
+    color:white;
+
+    padding:8px 16px;
+
+    border:none;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+}
+
+.delete-btn:hover{
+
+    background:#dc2626;
+
+}
+/* =====================================================
+   PART 3 - EXPENSE PAGE + FOOTER + RESPONSIVE
+===================================================== */
+
+/* ===========================
+   PAGE CONTAINER
+=========================== */
+
+.page-container{
+
+    width:92%;
+    max-width:1300px;
+    margin:35px auto;
+
+}
+
+/* ===========================
+   EXPENSE FORM
+=========================== */
+
+.form-card{
+
+    background:#ffffff;
+
+    border-radius:18px;
+
+    padding:35px;
+
+    box-shadow:var(--shadow);
+
+    margin-bottom:35px;
+
+}
+
+.form-card h2{
+
+    color:var(--dark);
+
+    margin-bottom:25px;
+
+    font-size:28px;
+
+}
+
+.form-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2,1fr);
+
+    gap:20px;
+
+}
+
+.form-grid .full{
+
+    grid-column:1/3;
+
+}
+
+.form-card label{
+
+    display:block;
+
+    margin-bottom:8px;
+
+    color:#475569;
+
+    font-weight:600;
+
+}
+
+.form-card textarea{
+
+    height:120px;
+
+}
+
+.save-btn{
+
+    margin-top:20px;
+
+    background:linear-gradient(135deg,#10B981,#059669);
+
+}
+
+.save-btn:hover{
+
+    background:#059669;
+
+}
+
+/* ===========================
+   FILTER BAR
+=========================== */
+
+.filter-bar{
+
+    background:#ffffff;
+
+    padding:25px;
+
+    border-radius:18px;
+
+    margin-bottom:35px;
+
+    box-shadow:var(--shadow);
+
+}
+
+.filter-bar h3{
+
+    margin-bottom:18px;
+
+    color:var(--dark);
+
+}
+
+.filter-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(4,1fr);
+
+    gap:18px;
+
+}
+
+.filter-btn{
+
+    background:#2563EB;
+
+}
+
+.filter-btn:hover{
+
+    background:#1D4ED8;
+
+}
+
+/* ===========================
+   TABLE CONTAINER
+=========================== */
+
+.table-card{
+
+    background:#ffffff;
+
+    border-radius:18px;
+
+    padding:30px;
+
+    box-shadow:var(--shadow);
+
+}
+
+.table-card h2{
+
+    margin-bottom:20px;
+
+}
+
+table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+thead{
+
+    background:#1E293B;
+
+    color:white;
+
+}
+
+th{
+
+    padding:16px;
+
+}
+
+td{
+
+    padding:15px;
+
+    border-bottom:1px solid #E2E8F0;
+
+}
+
+tbody tr{
+
+    transition:.3s;
+
+}
+
+tbody tr:hover{
+
+    background:#F8FAFC;
+
+}
+
+/* ===========================
+   ACTION BUTTONS
+=========================== */
+
+.edit-btn{
+
+    background:#F59E0B;
+
+    color:white;
+
+    padding:8px 18px;
+
+    border-radius:8px;
+
+    border:none;
+
+    margin-right:8px;
+
+    cursor:pointer;
+
+}
+
+.edit-btn:hover{
+
+    background:#D97706;
+
+}
+
+.delete-btn{
+
+    background:#EF4444;
+
+    color:white;
+
+    padding:8px 18px;
+
+    border-radius:8px;
+
+    border:none;
+
+    cursor:pointer;
+
+}
+
+.delete-btn:hover{
+
+    background:#DC2626;
+
+}
+
+/* ===========================
+   FOOTER
+=========================== */
+
+footer{
+
+    margin-top:50px;
+
+    background:#1E293B;
+
+    color:white;
+
+    text-align:center;
+
+    padding:22px;
+
+}
+
+footer strong{
+
+    color:#10B981;
+
+}
+
+/* ===========================
+   SMALL BADGES
+=========================== */
+
+.badge{
+
+    display:inline-block;
+
+    padding:5px 12px;
+
+    border-radius:20px;
+
+    font-size:12px;
+
+    color:white;
+
+    font-weight:600;
+
+}
+
+.food{
+
+    background:#10B981;
+
+}
+
+.shopping{
+
+    background:#8B5CF6;
+
+}
+
+.transport{
+
+    background:#2563EB;
+
+}
+
+.health{
+
+    background:#EF4444;
+
+}
+
+.education{
+
+    background:#F59E0B;
+
+}
+
+.entertainment{
+
+    background:#EC4899;
+
+}
+
+.other{
+
+    background:#64748B;
+
+}
+
+/* ===========================
+   RESPONSIVE
+=========================== */
+
+@media(max-width:992px){
+
+    .form-grid{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .form-grid .full{
+
+        grid-column:auto;
+
+    }
+
+    .filter-grid{
+
+        grid-template-columns:1fr 1fr;
+
+    }
+
+}
+
+@media(max-width:768px){
+
+    nav{
+
+        flex-direction:column;
+
+        gap:20px;
+
+        text-align:center;
+
+    }
+
+    .user-box{
+
+        flex-direction:column;
+
+    }
+
+    .dashboard{
+
+        grid-template-columns:1fr;
+
+    }
+
+    .filter-grid{
+
+        grid-template-columns:1fr;
+
+    }
+
+    table{
+
+        display:block;
+
+        overflow-x:auto;
+
+        white-space:nowrap;
+
+    }
+
+    .card{
+
+        width:95%;
+
+        padding:30px;
+
+    }
+
+    .summary-card h1{
+
+        font-size:30px;
+
+    }
+
+}
+
+@media(max-width:500px){
+
+    nav{
+
+        padding:18px;
+
+    }
+
+    nav h2{
+
+        font-size:22px;
+
+    }
+
+    .quote{
+
+        font-size:15px;
+
+    }
+
+    section{
+
+        padding:20px;
+
+    }
+
+}

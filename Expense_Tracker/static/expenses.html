@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Expense Tracker | Expenses</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<!-- ================= NAVBAR ================= -->
+
+<nav>
+
+    <h2>💰 Expense Tracker</h2>
+
+    <div class="user-box">
+
+        <div class="user-avatar">
+            👤
+        </div>
+
+        <div>
+
+            <span class="welcome-text">
+                Expense Management
+            </span>
+
+            <h3>
+                My Expenses
+            </h3>
+
+        </div>
+
+        <button onclick="logout()">
+
+            Logout
+
+        </button>
+
+    </div>
+
+</nav>
+
+<!-- ================= QUOTE ================= -->
+
+<div class="quote">
+
+    <strong>📈 Daily Motivation</strong>
+
+    <br><br>
+
+    "Track every rupee today to enjoy financial freedom tomorrow."
+
+</div>
+
+<!-- ================= ADD EXPENSE ================= -->
+
+<div class="page-container">
+
+<div class="form-card">
+
+<h2>
+
+➕ Add New Expense
+
+</h2>
+
+<div class="form-grid">
+
+<div>
+
+<label>
+
+Title
+
+</label>
+
+<input
+type="text"
+id="title"
+placeholder="Expense Title">
+
+</div>
+
+<div>
+
+<label>
+
+Amount
+
+</label>
+
+<input
+type="number"
+id="amount"
+placeholder="₹ Amount">
+
+</div>
+
+<div>
+
+<label>
+
+Category
+
+</label>
+
+<select id="category">
+
+<option value="">Select Category</option>
+
+<option>Food</option>
+
+<option>Transport</option>
+
+<option>Shopping</option>
+
+<option>Health</option>
+
+<option>Education</option>
+
+<option>Entertainment</option>
+
+<option>Other</option>
+
+</select>
+
+</div>
+
+<div>
+
+<label>
+
+Date
+
+</label>
+
+<input
+type="date"
+id="date">
+
+</div>
+
+<div class="full">
+
+<label>
+
+Note
+
+</label>
+
+<textarea
+id="note"
+placeholder="Write additional details (Optional)"></textarea>
+
+</div>
+
+</div>
+
+<button
+class="save-btn"
+onclick="saveExpense()">
+
+Save Expense
+
+</button>
+
+</div>
+
+<!-- ================= FILTER ================= -->
+
+<div class="filter-bar">
+
+<h3>
+
+🔍 Filter Expenses
+
+</h3>
+
+<div class="filter-grid">
+
+<select id="filterCategory">
+
+<option value="">
+
+All Categories
+
+</option>
+
+<option>
+
+Food
+
+</option>
+
+<option>
+
+Transport
+
+</option>
+
+<option>
+
+Shopping
+
+</option>
+
+<option>
+
+Health
+
+</option>
+
+<option>
+
+Education
+
+</option>
+
+<option>
+
+Entertainment
+
+</option>
+
+<option>
+
+Other
+
+</option>
+
+</select>
+
+<input
+type="date"
+id="fromDate">
+
+<input
+type="date"
+id="toDate">
+
+<button
+class="filter-btn"
+onclick="filterExpenses()">
+
+Apply Filter
+
+</button>
+
+</div>
+
+</div>
+
+<!-- ================= TABLE ================= -->
+
+<div class="table-card">
+
+<h2>
+
+📋 Expense History
+
+</h2>
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>
+
+Title
+
+</th>
+
+<th>
+
+Amount
+
+</th>
+
+<th>
+
+Category
+
+</th>
+
+<th>
+
+Date
+
+</th>
+
+<th>
+
+Note
+
+</th>
+
+<th>
+
+Actions
+
+</th>
+
+</tr>
+
+</thead>
+
+<tbody id="expenseTable">
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+
+<!-- ================= FOOTER ================= -->
+
+<footer>
+
+<p>
+
+© 2026 Expense Tracker
+
+</p>
+
+<br>
+
+<p>
+
+Developed with ❤️ by
+
+<strong>
+
+Sudharsun A
+
+</strong>
+
+</p>
+
+</footer>
+
+<script src="/static/script.js"></script>
+
+</body>
+
+</html>
