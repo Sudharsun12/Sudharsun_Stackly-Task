@@ -1,0 +1,67 @@
+Task 5 – Expense Tracker
+
+Task 5 – Personal Expense Tracker
+
+1. What is a foreign key and what does ON DELETE CASCADE do in your expenses table?
+
+A foreign key is a database constraint that creates a relationship between two tables. In this project, the `user_id` column in the `expenses` table is a foreign key that references the `id` column of the `users` table. This ensures that every expense belongs to a valid registered user.
+
+The `ON DELETE CASCADE` option automatically deletes all expenses associated with a user when that user account is deleted. This helps maintain database integrity by preventing orphaned records and ensures that no expense exists without an associated user.
+
+
+2. How does your backend make sure User A cannot see User B's expenses?
+
+The backend uses session-based authentication to identify the currently logged-in user. After a successful login, the user's ID is stored in the session as `session['user_id']`.
+
+Every expense-related SQL query includes the condition:
+
+sql
+WHERE user_id = %s
+
+where the value passed is `session['user_id']`.
+
+This ensures that all operations—including viewing, adding, updating, deleting, filtering, and generating summaries—are performed only on the logged-in user's data. Even if another user knows an expense ID, they cannot access or modify it because every query verifies that the expense belongs to the current session's user.
+
+3. What SQL query did you use for the category summary on the dashboard?
+
+The dashboard category summary was generated using the following SQL query:
+
+sql
+SELECT
+    category,
+    SUM(amount) AS total_amount
+FROM expenses
+WHERE user_id = %s
+GROUP BY category;
+
+This query filters expenses for the logged-in user, groups them by category, and calculates the total amount spent in each category. The result is displayed on the dashboard as the category-wise expense summary.
+
+
+4. What was the hardest part of this task and how did you solve it?
+
+The most challenging part of this project was integrating user authentication with expense management while ensuring that each user could access only their own data. It was important to correctly implement session handling and apply `user_id` filtering in every expense-related SQL query.
+
+Another challenge was connecting the frontend with the Flask backend using JavaScript `fetch()` requests while maintaining sessions using `credentials: "include"`. During development, I also encountered routing issues, HTTP method errors, and mismatched HTML element IDs, which initially prevented some features from working correctly.
+
+I resolved these issues by carefully debugging the application, verifying API endpoints, checking browser developer tools, ensuring consistent element IDs between HTML and JavaScript, and thoroughly testing every CRUD operation with multiple user accounts. This process helped me build a secure and fully functional full-stack application.
+
+5.Project Implementation:
+
+The Expense Tracker is a full-stack web application developed using Python, Flask, MySQL, HTML, CSS, and JavaScript. The application was implemented by integrating user authentication with expense management, ensuring that each user can securely manage only their own financial records.
+
+The project begins with a user authentication system where new users can register by providing a username, email address, and password. The password is securely hashed using the Flask-Bcrypt library before being stored in the MySQL database. Existing users can log in using their credentials, and upon successful authentication, a session is created to maintain the user's login state throughout the application.
+
+After logging in, users are redirected to the Dashboard, which provides an overview of their expense data. The dashboard displays important financial statistics such as the total number of expenses, total amount spent, highest expense, number of categories used, category-wise expense summary, and the five most recent expenses. SQL aggregation functions like SUM(), COUNT(), MAX(), and GROUP BY are used to generate these summaries efficiently.
+
+The Expense Management module allows users to perform complete CRUD (Create, Read, Update, Delete) operations. Users can add new expenses by entering details such as title, amount, category, date, and an optional note. Existing expenses can be edited or deleted, and all changes are reflected immediately without refreshing the page using JavaScript Fetch API.
+
+To improve usability, the application also provides a filtering feature, allowing users to filter expenses based on category or a selected date range. The frontend communicates with the Flask backend using asynchronous `fetch()` requests, while maintaining user sessions through `credentials: "include"`.
+
+The application uses a relational database design consisting of two tables: `users` and `expenses`. The `expenses` table contains a `user_id` foreign key that references the `users` table, establishing a one-to-many relationship where one user can own multiple expenses. The `ON DELETE CASCADE` constraint ensures that all expenses belonging to a user are automatically removed if that user account is deleted.
+
+To ensure data security, every expense-related SQL query includes the logged-in user's ID stored in the session. This guarantees that each user can access only their own expenses, preventing unauthorized access to other users' data. Additionally, all database operations use **parameterized SQL queries** to protect against SQL injection attacks.
+
+Overall, the project demonstrates the implementation of authentication, session management, relational database concepts, CRUD operations, SQL aggregation, filtering, secure backend development, and responsive frontend design, resulting in a complete and secure personal expense tracking system.
+
+
+
