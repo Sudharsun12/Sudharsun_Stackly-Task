@@ -1,0 +1,74 @@
+Student Marks & Grade Tracker API
+
+1. Where exactly in your code does the grade get calculated? Paste that function here.
+The grade is calculated inside the reusable calculate_grade() function. This function is called whenever the application needs to determine the grade for a subject or the overall average percentage.
+
+def calculate_grade(percentage):
+
+    if percentage >= 90:
+        return "A"
+
+    elif percentage >= 75:
+        return "B"
+
+    elif percentage >= 60:
+        return "C"
+
+    elif percentage >= 45:
+        return "D"
+
+    else:
+        return "F"
+
+2. What SQL query gives you the class average in /summary?
+SELECT
+    students.id,
+    students.name,
+    AVG((marks.score / marks.max_score) * 100) AS average_percentage
+FROM students
+JOIN marks
+ON students.id = marks.student_id
+GROUP BY students.id, students.name
+ORDER BY average_percentage DESC;
+
+The SQL query returns the average percentage for each student.The overall class average is then calculated in Python by averaging these student averages before returning the final JSON response.
+
+3.What happens in your API if someone sends a score of -10 or a score of 150 when the maximum score is 100?
+If the score is negative, for example:
+
+{
+    "subject": "Mathematics",
+    "score": -10,
+    "max_score": 100
+}
+
+The API returns:
+
+{
+    "message": "Score cannot be negative"
+}
+
+If the score is greater than the maximum score, for example:
+
+{
+    "subject": "Mathematics",
+    "score": 150,
+    "max_score": 100
+}
+
+The API returns:
+
+{
+    "message": "Score cannot exceed Max Score"
+}
+These validations ensure that only valid marks are stored in the database and prevent incorrect data from affecting reports and grade calculations.
+
+4. Project Implementation and Challenges Faced:
+
+The Student Marks & Grade Tracker API was developed using Python, Flask, and MySQL by following REST API architecture principles. The project was designed to manage student records, store subject-wise marks, calculate grades dynamically in Python, and generate individual as well as class-level reports without using any frontend technologies. All API responses are returned in JSON format and were successfully tested using Postman.
+
+The application includes complete CRUD operations for students and marks. It provides endpoints to add, retrieve, update, and delete student records, manage subject marks, generate student reports, and produce class-level summary reports. The report APIs calculate percentages, grades, average percentage, overall grade, pass or fail status, best-performing subject, weakest subject, and class statistics. All SQL queries were implemented using parameterized statements to improve security and prevent SQL injection attacks.
+
+Proper validation and exception handling were implemented throughout the project. The application validates missing fields, duplicate email addresses, invalid student IDs, negative scores, and scores greater than the maximum score. Appropriate HTTP status codes such as 200 (Success), 201 (Created), 400 (Bad Request), 404 (Not Found), and 409 (Conflict) are returned along with meaningful JSON responses to ensure consistent API behavior.
+
+During the development process, several challenges were encountered. Initially, understanding REST API development without a frontend required learning how to test endpoints using Postman. Establishing the connection between Flask and MySQL, handling JSON request and response data, implementing reusable grade calculation logic, generating accurate student and class reports, and maintaining relationships between the students and marks tables using foreign keys with ON DELETE CASCADE also required careful implementation. These challenges were overcome through systematic debugging, testing each endpoint individually, verifying database operations in MySQL, and organizing the application into reusable functions. As a result, the project was completed as a fully functional, secure, well-structured, and well-documented backend REST API.
