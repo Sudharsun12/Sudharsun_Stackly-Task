@@ -1,0 +1,57 @@
+Task 8 – Country Explorer
+
+1. What is the structure of the API response? How do you access the flag image URL, the languages, and the currencies from the JSON?
+
+The REST Countries API returns the data as an array, where each element represents a single country. Each country contains different details such as its name, flag, capital, population, region, subregion, area, languages, currencies, and many other useful information.
+
+For my project, I accessed the country's flag image from the **flags** section, the list of languages from the **languages** object, and the currency information from the **currencies** object. Since languages and currencies are stored as objects, I converted them into a readable format before displaying them to the user.
+
+This structure made it easy to retrieve the required information and present it in both the country cards and the detailed view.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+2. You fetch all data once on load and filter in JavaScript. Why is this better than calling the API again every time the user types in the search box?
+
+I chose to fetch all the country data only once when the application loads and store it locally. After that, all search and region filtering operations are performed using the already available data.
+
+This approach provides a much smoother user experience because the results appear instantly without waiting for another API request. It also reduces unnecessary internet traffic and minimizes the number of requests sent to the server. Since the same dataset is reused throughout the application, the overall performance becomes faster and the application feels more responsive.
+
+This method also keeps the application efficient and easier to maintain.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+3. What happens in your code when the API call fails?
+
+If the API request fails due to a network issue or any other problem, the application does not remain blank. Instead, it stops the loading process and displays a clear error message informing the user that the country data could not be loaded and asking them to try again later.
+
+This ensures that users always know what happened instead of wondering why no data is displayed. Proper loading and error states make the application more reliable and improve the overall user experience.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+4. Additional Features Implemented
+
+In addition to completing all the mandatory requirements, I implemented several extra features to improve the functionality and usability of the application.
+
+* Real-time search filtering.
+* Region-based filtering.
+* Sorting countries by name and population.
+* Displaying the total number of countries currently shown.
+* Responsive design for different screen sizes.
+* Improved loading and error handling.
+* A detailed country information view with additional data.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+5. Custom API Feature
+
+As an extra enhancement, I implemented a feature that allows users to provide their own API endpoint. Instead of limiting the application to only the default REST Countries API, users can enter another compatible API URL and load the data through the same interface.
+
+This makes the application more flexible and reusable. It demonstrates that the application is designed to work with different data sources rather than depending on a single API. I added this feature to make the project closer to a real-world application where APIs may change or different environments may require different endpoints.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+6. Conclusion
+
+This task gave me practical experience in working with a live public REST API and handling data completely on the frontend. I learned how to manage API data efficiently, update the user interface dynamically, and provide a better user experience through search, filtering, loading states, and error handling.
+
+Along with implementing all the required functionalities, I extended the project by adding support for custom API endpoints, making the application more flexible, reusable, and closer to real-world frontend development.
