@@ -1,0 +1,457 @@
+================================================================================
+  TASK 9 — NOTVAULT PERSONAL NOTES APP
+  Written by  : A. Sudharsun
+  Programme   : Full-Stack Development | Task 9 — Introduction to React
+  Technology  : React 18 · JavaScript · Vite · Vanilla CSS · localStorage
+  Date        : August 2026
+================================================================================
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 1 — IMPLEMENTATION OVERVIEW
+════════════════════════════════════════════════════════════════════════════════
+
+PROJECT DESCRIPTION:
+────────────────────
+NoteVault is a personal notes web application built entirely in React.
+Users can create, edit, delete, pin, search, and filter notes by category.
+All notes persist in the browser's localStorage so they survive page refreshes.
+
+The app was built as Task 9 of the Full-Stack Development Programme — the
+first project to use React instead of plain HTML/CSS/JavaScript.
+
+────────────────────────────────────────────────────────────────────────────────
+COMPONENT STRUCTURE:
+────────────────────────────────────────────────────────────────────────────────
+
+The app is split into 5 components, each with a single responsibility:
+
+  App.jsx
+  ┣━ The ROOT component. It owns ALL shared state (notes list, search text,
+  ┃  active category, sort order, which note is being edited, quote index).
+  ┃  It contains all CRUD logic (add, edit, delete, pin) and passes data
+  ┃  and handler functions down to children as props.
+  ┃
+  ┣━ NoteForm.jsx
+  ┃    A controlled form for adding new notes or editing existing ones.
+  ┃    Fields: Title (max 60 chars), Content (max 500 chars), Category.
+  ┃    Shows a live character counter and colour-coded progress bar.
+  ┃    When editingNote prop is provided, it pre-fills the form fields.
+  ┃
+  ┣━ SearchBar.jsx
+  ┃    Contains a search input for live title search, category filter chips
+  ┃    (All / Work / Personal / Study / Other), and a sort dropdown.
+  ┃    All values are controlled by App via props.
+  ┃
+  ┣━ NoteList.jsx
+  ┃    Receives the filtered notes array and separates them into two groups:
+  ┃    pinned notes and unpinned notes. Renders a NoteCard for each note.
+  ┃    Also handles the empty state UI.
+  ┃
+  ┗━ NoteCard.jsx
+       Displays a single note: category badge, pin button, title, content,
+       date, and edit/delete action buttons.
+       Has local state (confirmDelete) for the 2-click delete confirmation.
+
+────────────────────────────────────────────────────────────────────────────────
+FEATURES IMPLEMENTED:
+────────────────────────────────────────────────────────────────────────────────
+
+  [1] Create Note     — Title + Content + Category. Saved on submit.
+  [2] Edit Note       — Pre-fills form. Updates note on submit.
+  [3] Delete Note     — 2-click confirm (3-second window) to avoid accidents.
+  [4] Pin / Unpin     — Pinned notes always sort to the top of the list.
+  [5] Live Search     — Filters notes by title as the user types.
+  [6] Category Filter — Shows only notes of the selected category.
+  [7] Sort Order      — Toggle: Newest First / Oldest First.
+  [8] Persistence     — Saved to localStorage. Notes survive page refresh.
+  [9] Live Count      — Header badge shows total notes + pinned count.
+ [10] Rotating Quotes — Inspirational quotes fade in/out every 8 seconds.
+ [11] Char Counter    — Visual progress bar warns as content limit approaches.
+ [12] Responsive      — Works on mobile screens and desktop.
+
+────────────────────────────────────────────────────────────────────────────────
+HOW PERSISTENCE WORKS:
+────────────────────────────────────────────────────────────────────────────────
+
+  Step 1 — On page load (first render):
+    useState uses a lazy initializer to read notes from localStorage BEFORE
+    rendering. This means notes are already available from the very first paint.
+
+      const [notes, setNotes] = useState(() => {
+        const saved = localStorage.getItem('notes')
+        return saved ? JSON.parse(saved) : []
+      })
+
+  Step 2 — Whenever notes change:
+    A useEffect with [notes] as dependency re-saves the updated notes array
+    to localStorage as a JSON string every time a note is added/edited/deleted.
+
+      useEffect(() => {
+        localStorage.setItem('notes', JSON.stringify(notes))
+      }, [notes])
+
+  This two-part system ensures notes are never lost on refresh.
+
+────────────────────────────────────────────────────────────────────────────────
+BUG ENCOUNTERED AND FIXED:
+────────────────────────────────────────────────────────────────────────────────
+
+  PROBLEM:
+    After refreshing the browser, all notes disappeared.
+
+  ROOT CAUSE:
+    The original code had TWO separate useEffects:
+      - One to load notes from localStorage (on mount)
+      - One to save notes to localStorage (when notes changes)
+
+    On the first render, notes started as [] (empty array). React ran BOTH
+    effects after the first render. The SAVE effect ran with [] and wrote an
+    empty array to localStorage — overwriting the previously saved notes —
+    before the LOAD effect could restore them.
+
+  FIX:
+    Removed the load useEffect entirely. Instead, the initial notes state
+    is read from localStorage using a lazy initializer inside useState itself.
+    This runs SYNCHRONOUSLY before the first render, so notes are never empty
+    at the point when the save effect runs.
+
+    BEFORE (broken):
+      const [notes, setNotes] = useState([])       ← starts empty
+      useEffect(() => {                             ← too late
+        const saved = localStorage.getItem('notes')
+        if (saved) setNotes(JSON.parse(saved))
+      }, [])
+
+    AFTER (fixed):
+      const [notes, setNotes] = useState(() => {   ← reads before render
+        const saved = localStorage.getItem('notes')
+        return saved ? JSON.parse(saved) : []
+      })
+
+────────────────────────────────────────────────────────────────────────────────
+DESIGN DECISIONS:
+────────────────────────────────────────────────────────────────────────────────
+
+  • Glassmorphism dark theme — rgba backgrounds + backdrop-filter blur
+  • Gradient accent colours: purple (#8b5cf6) + blue (#3b82f6) + pink (#ec4899)
+  • Category left-border colour coding on each card for quick scanning
+  • Google Fonts (Inter) for clean, professional typography
+  • All components in separate files for maintainability
+  • No UI libraries — all styles written from scratch in App.css
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SECTION 2 — WRITTEN QUESTIONS & ANSWERS
+════════════════════════════════════════════════════════════════════════════════
+
+
+────────────────────────────────────────────────────────────────────────────────
+  Q1. WHAT IS THE DIFFERENCE BETWEEN STATE AND PROPS IN REACT?
+      GIVE ONE EXAMPLE OF EACH FROM YOUR OWN CODE.
+────────────────────────────────────────────────────────────────────────────────
+
+STATE:
+  State is data that a component OWNS internally and can change over time.
+  When state changes, React automatically re-renders that component (and
+  its children). State is declared with useState(). It is private — no
+  other component can read or change it directly.
+
+  State = the component's own memory.
+
+  Example from my code (App.jsx):
+
+    const [notes, setNotes] = useState(() => {
+      const saved = localStorage.getItem('notes')
+      return saved ? JSON.parse(saved) : []
+    })
+
+  "notes" is a state variable. It belongs to App.jsx alone. When the user
+  adds a note, setNotes() is called with the updated array. React re-renders
+  App and all its children, showing the updated list on screen.
+
+  Other state variables in my app:
+    const [search, setSearch]         = useState('')
+    const [category, setCategory]     = useState('All')
+    const [editingNote, setEditingNote] = useState(null)
+
+PROPS:
+  Props (short for "properties") are values passed FROM a parent component
+  TO a child component. They are READ-ONLY inside the child — the child
+  cannot change its own props. Props flow in one direction: parent → child.
+
+  Props = data passed in from the outside.
+
+  Example from my code (App.jsx passing props to NoteList):
+
+    <NoteList
+      notes={filtered}
+      onDelete={handleDelete}
+      onEdit={handleEdit}
+      onTogglePin={handleTogglePin}
+      totalNotes={notes.length}
+    />
+
+  NoteList receives "notes", "onDelete", "onEdit", "onTogglePin", and
+  "totalNotes" as props. It can READ them and display data, and it can
+  CALL the handler functions — but it cannot modify the notes array itself.
+
+  NoteList then passes props further down to NoteCard:
+
+    <NoteCard
+      note={note}
+      onDelete={onDelete}
+      onEdit={onEdit}
+      onTogglePin={onTogglePin}
+    />
+
+THE KEY DIFFERENCES:
+  ┌────────────────────┬─────────────────────────────┬──────────────────────────┐
+  │                    │ STATE                       │ PROPS                    │
+  ├────────────────────┼─────────────────────────────┼──────────────────────────┤
+  │ Who owns it?       │ The component itself        │ The parent component     │
+  │ Can it change?     │ Yes (via setState)          │ No — read-only           │
+  │ Direction          │ Internal                    │ Top-down (parent→child)  │
+  │ Who can update it? │ Only the owning component   │ Only the parent          │
+  │ Declared with      │ useState()                  │ Function parameter       │
+  └────────────────────┴─────────────────────────────┴──────────────────────────┘
+
+  Rule of thumb:
+  - If data needs to CHANGE → use state
+  - If data needs to be SHARED → pass as props
+
+
+────────────────────────────────────────────────────────────────────────────────
+  Q2. WHY DO WE USE useState INSTEAD OF A REGULAR JAVASCRIPT VARIABLE
+      TO STORE NOTES?
+────────────────────────────────────────────────────────────────────────────────
+
+  The short answer: because React does NOT know when a regular variable changes.
+
+  PROBLEM WITH A REGULAR VARIABLE:
+
+    function App() {
+      let notes = []   // ← regular variable
+
+      function addNote(noteData) {
+        notes.push(noteData)
+        // The variable changed... but nothing happens on screen!
+      }
+
+      return <div>{notes.map(n => <p>{n.title}</p>)}</div>
+    }
+
+  Even though we pushed a new note into "notes", the screen does NOT update.
+  React has no way of knowing the variable changed because it does not watch
+  regular JavaScript variables. Nothing triggers a re-render.
+
+  There is also a second problem: every time React re-renders the component
+  (for any reason), the function runs again from the top — and "let notes = []"
+  resets the variable back to an empty array. The data is lost.
+
+  HOW useState FIXES BOTH PROBLEMS:
+
+    const [notes, setNotes] = useState([])
+
+    function addNote(noteData) {
+      setNotes([...notes, noteData])
+      // React KNOWS the state changed → triggers re-render → UI updates ✓
+    }
+
+  When you call setNotes():
+    1. React stores the new notes array internally (it persists between renders)
+    2. React schedules a re-render of the component
+    3. On the next render, "notes" has the updated value
+    4. The JSX runs again with the new data and the screen updates
+
+  SUMMARY:
+    Regular variable   → Changes silently. UI never updates. Data resets.
+    useState variable  → Changes trigger re-render. Data persists. UI stays in sync.
+
+  In NoteVault, without useState, adding a note would update the JavaScript
+  variable but NoteList on screen would never show the new note. With useState,
+  every setNotes() call immediately updates the screen.
+
+
+────────────────────────────────────────────────────────────────────────────────
+  Q3. WHAT DOES THE DEPENDENCY ARRAY IN useEffect DO?
+      WHAT HAPPENS IF YOU LEAVE IT EMPTY []?
+      WHAT HAPPENS IF YOU PUT [notes] IN IT?
+────────────────────────────────────────────────────────────────────────────────
+
+  useEffect is used for "side effects" — operations that happen OUTSIDE the
+  rendering process, such as:
+    - Saving data to localStorage
+    - Fetching data from an API
+    - Setting up timers or subscriptions
+
+  The DEPENDENCY ARRAY is the second argument to useEffect. It is a list of
+  values that the effect "depends on". React watches these values and only
+  re-runs the effect when one of them changes.
+
+  Syntax:
+    useEffect(() => {
+      // side effect code
+    }, [/* dependency array */])
+
+  ──────────────────────────────────────────────────────────
+  CASE 1 — NO dependency array:
+  ──────────────────────────────────────────────────────────
+    useEffect(() => {
+      console.log('This runs after every render')
+    })
+
+    The effect runs after EVERY render — any state change anywhere
+    in the component triggers it. This is rarely what you want and
+    can cause infinite loops or performance problems.
+
+  ──────────────────────────────────────────────────────────
+  CASE 2 — EMPTY array []:
+  ──────────────────────────────────────────────────────────
+    useEffect(() => {
+      const timer = setInterval(() =>
+        setQuoteIndex(i => (i + 1) % QUOTES.length), 8000)
+      return () => clearInterval(timer)
+    }, [])
+
+    The empty array means: "I depend on NOTHING, so only run once
+    after the first render." This is like componentDidMount in class
+    components. The timer is created once when the app loads and
+    cleared when the app unmounts (the return function is a "cleanup").
+
+    Used in my app for: setting up the quote rotation interval.
+
+  ──────────────────────────────────────────────────────────
+  CASE 3 — [notes] in the array:
+  ──────────────────────────────────────────────────────────
+    useEffect(() => {
+      localStorage.setItem('notes', JSON.stringify(notes))
+    }, [notes])
+
+    This means: "Run after the first render AND every time 'notes' changes."
+    Whenever a note is added, edited, deleted, or pinned, the "notes" state
+    changes → this effect fires → the updated notes are saved to localStorage.
+
+    Used in my app for: persisting notes to localStorage.
+
+    If [] were used instead: notes would only be saved once on page load
+    (not useful — future changes would be lost).
+    If no array were used: notes would save after every render, even when
+    just typing in the search box (wasteful).
+
+  SUMMARY TABLE:
+  ┌──────────────────────────┬──────────────────────────────────────────────┐
+  │ Dependency Array         │ When the effect runs                         │
+  ├──────────────────────────┼──────────────────────────────────────────────┤
+  │ (no array)               │ After EVERY render                           │
+  │ [] — empty               │ Once — after the FIRST render only           │
+  │ [notes]                  │ After first render + every time notes changes │
+  │ [notes, category]        │ After first render + when either changes      │
+  └──────────────────────────┴──────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────
+  Q4. HOW DOES DATA FLOW IN YOUR APP?
+      WHICH COMPONENT OWNS THE NOTES STATE AND
+      HOW DOES IT REACH NoteCard?
+────────────────────────────────────────────────────────────────────────────────
+
+  React uses UNIDIRECTIONAL DATA FLOW — data always moves in one direction,
+  from parent to child via props. No child can directly reach into another
+  component and change its state.
+
+  ──────────────────────────────────────────────────────────
+  WHO OWNS THE STATE:
+  ──────────────────────────────────────────────────────────
+
+  App.jsx is the single owner of the "notes" state. It is the "single
+  source of truth" for all notes data in the entire application.
+
+    In App.jsx:
+      const [notes, setNotes] = useState(...)    ← only lives here
+
+  ──────────────────────────────────────────────────────────
+  HOW DATA FLOWS DOWN FROM App → NoteCard:
+  ──────────────────────────────────────────────────────────
+
+  ┌───────────────────────────────────────────────────────────────────────┐
+  │  App.jsx                                                              │
+  │                                                                       │
+  │  const [notes, setNotes] = useState(...)  ← OWNS the state           │
+  │                                                                       │
+  │  const filtered = notes                   ← derives a VIEW           │
+  │    .filter(n => n.title.includes(search)) │                          │
+  │    .sort((a, b) => b.pinned - a.pinned)   │                          │
+  │                                           │                          │
+  │  return <NoteList notes={filtered} .../>  ← passes as PROP           │
+  └───────────────────────────────────────────┬───────────────────────────┘
+                                              │ notes={filtered}
+                                              │ onDelete={handleDelete}
+                                              │ onEdit={handleEdit}
+                                              │ onTogglePin={handleTogglePin}
+                                              ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │  NoteList.jsx                                                          │
+  │                                                                        │
+  │  Receives: { notes, onDelete, onEdit, onTogglePin, totalNotes }        │
+  │                                                                        │
+  │  const pinned   = notes.filter(n => n.pinned)   ← splits array        │
+  │  const unpinned = notes.filter(n => !n.pinned)  │                     │
+  │                                                 │                     │
+  │  pinned.map(note =>                             │                     │
+  │    <NoteCard note={note} onDelete={onDelete}/>  ← passes as PROP      │
+  └─────────────────────────────────────────────────┬──────────────────────┘
+                                                    │ note={note}
+                                                    │ onDelete={onDelete}
+                                                    │ onEdit={onEdit}
+                                                    │ onTogglePin={onTogglePin}
+                                                    ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │  NoteCard.jsx                                                          │
+  │                                                                        │
+  │  Receives: { note, onDelete, onEdit, onTogglePin }                     │
+  │                                                                        │
+  │  Displays: note.title, note.content, note.category, note.pinned        │
+  │                                                                        │
+  │  <h3>{note.title}</h3>          ← reads from prop                     │
+  │  <p>{note.content}</p>          ← reads from prop                     │
+  │  <button onClick={() => onEdit(note)}>Edit</button>                   │
+  │  <button onClick={() => onDelete(note.id)}>Delete</button>            │
+  └────────────────────────────────────────────────────────────────────────┘
+
+  ──────────────────────────────────────────────────────────
+  HOW EVENTS FLOW BACK UP (Lifting State Up):
+  ──────────────────────────────────────────────────────────
+
+  NoteCard cannot change the "notes" state directly — it doesn't own it.
+  Instead, App passes handler functions (onDelete, onEdit, onTogglePin)
+  as props. When a user clicks a button in NoteCard, the handler function
+  is called, which triggers setNotes() in App, which causes a re-render,
+  which flows updated data back down via props.
+
+  Example — User clicks DELETE in NoteCard:
+
+    [User clicks 🗑️ Delete in NoteCard]
+           ↓
+    onDelete(note.id) is called            ← prop function from App
+           ↓
+    handleDelete(id) runs in App.jsx       ← actual logic
+           ↓
+    setNotes(notes.filter(n => n.id !== id)) ← state updates
+           ↓
+    React re-renders App → NoteList → NoteCard
+           ↓
+    The deleted note no longer appears     ← UI updated ✓
+
+  This pattern — where child components call parent-provided functions
+  to trigger state changes — is called "LIFTING STATE UP."
+  It keeps state in one place (App.jsx) and makes the app predictable.
+
+
+════════════════════════════════════════════════════════════════════════════════
+  END OF TASK 9 WRITE-UP
+  Developer  : A. Sudharsun
+  Task       : Task 9 — Introduction to React
+  App Name   : NoteVault Personal Notes App
+  Programme  : Full-Stack Development Programme
+================================================================================

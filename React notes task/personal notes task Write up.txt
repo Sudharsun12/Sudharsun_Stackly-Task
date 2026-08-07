@@ -1,0 +1,48 @@
+================================================================================
+  PERSONAL NOTES TASK — WRITE UP
+  Task 9 | Introduction to React
+================================================================================
+
+
+IMPLEMENTATION
+
+For Task 9, I built a personal notes application called NoteVault using React. The app lets users create, edit, delete, pin, search, and filter notes by category. All notes are saved in the browser's localStorage so they are not lost when the page is refreshed.
+
+The app is structured into five components. App.jsx is the root component that owns all the data and logic. NoteForm.jsx is a form for adding and editing notes with fields for title, content, and category. SearchBar.jsx has a search input, category filter buttons, and a sort dropdown. NoteList.jsx receives the filtered list of notes and renders them in two sections — pinned notes at the top and the rest below. NoteCard.jsx displays each individual note with its title, content, category badge, date, and edit or delete buttons.
+
+Notes are stored as an array of objects in React state inside App.jsx. Each time the notes change, a useEffect saves them to localStorage as a JSON string. When the page first loads, the useState lazy initializer reads the saved notes from localStorage before the first render, so the saved data is always available immediately. The search and filter values are also stored in state, and a filtered version of the notes array is computed on every render using JavaScript's filter and sort methods.
+
+During development, I encountered a bug where all notes disappeared on page refresh. The cause was that two useEffects were running after the first render — one to load notes and one to save them. The save effect ran first with an empty notes array and wiped the localStorage data before the load effect could restore it. I fixed this by removing the load useEffect and using a lazy initializer in useState instead, which reads from localStorage synchronously before the first render happens.
+
+
+QUESTION 1 — What is the difference between state and props in React?
+
+State is data that a component owns and manages itself. When state changes, React re-renders the component automatically so the screen stays in sync with the data. In my app, the notes array is stored as state inside App.jsx using useState. When a user adds a note, setNotes is called with the updated array and the component re-renders to show the new note on screen.
+
+Props are values that a parent component passes down to a child component. The child can read and use props but cannot change them. In my app, App.jsx passes the filtered notes array and handler functions like onDelete and onEdit as props to NoteList. NoteList then passes a single note object and those same handlers further down to each NoteCard. The key difference is that state belongs to the component that declared it and can change, while props are received from outside and are read-only.
+
+
+QUESTION 2 — Why do we use useState instead of a regular JavaScript variable to store notes?
+
+If you store notes in a regular variable like let notes = [], the browser screen will never update when the variable changes. React does not watch regular variables and has no way to know something changed, so it never triggers a re-render. Also, every time the component function runs again, the variable resets back to its initial empty value, so any data added is lost.
+
+When you use useState, calling the setter function like setNotes does two things. First, it tells React the data has changed and triggers a re-render. Second, React holds onto the value between renders so it is not lost. This is why in NoteVault, every time a note is added or deleted, the list on screen updates immediately without any manual DOM manipulation.
+
+
+QUESTION 3 — What does the dependency array in useEffect do?
+
+The dependency array is the second argument to useEffect and it controls when the effect runs. If you leave it empty with just [], the effect runs only once after the first render and never again. I used this for the quote rotation timer so that it is set up once when the app loads and does not get recreated on every render.
+
+If you put a variable like notes inside the array as [notes], the effect runs after the first render and then again every time the value of notes changes. I used this for saving notes to localStorage so that every time a note is added, edited, deleted, or pinned, the updated array is immediately saved. If I had used an empty array instead, notes would only be saved once on startup and all future changes would be lost on refresh.
+
+
+QUESTION 4 — How does data flow in your app and how does it reach NoteCard?
+
+All data starts at App.jsx, which owns the notes state and is the single source of truth. App computes a filtered and sorted version of the notes array based on the current search text, selected category, and sort order. This filtered array is then passed down as a prop to NoteList.
+
+NoteList receives the array and loops through it, rendering a NoteCard for each note and passing the individual note object and the handler functions as props. NoteCard receives the note and displays its title, content, category, and date. When a user clicks Edit or Delete in NoteCard, it calls the handler function it received as a prop, which runs the actual logic back in App.jsx where the state is updated and a re-render flows the new data back down through the chain. This pattern of child components calling parent-provided functions to trigger state changes is called lifting state up.
+
+
+================================================================================
+  Done by Sudharsun
+================================================================================
