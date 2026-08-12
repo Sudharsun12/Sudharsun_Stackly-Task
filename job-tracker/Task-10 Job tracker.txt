@@ -1,0 +1,55 @@
+Task-10 Job Tracker Developed by A.Sudharsun
+============================================
+
+
+WHAT I BUILT
+
+For Task 10, I built a full-stack Job Application Tracker web application. This is a personal productivity tool where a logged-in user can manage all their job applications in one place. The application allows users to register an account, log in securely, add new job applications with details like company name, role, status, applied date, location, job URL, and notes. Users can also view all their applications in a table, filter and search through them, update the status of any application, delete entries they no longer need, and view a dashboard that summarizes all their applications with counts per status and the latest five entries. Every user sees only their own data, and authentication is required to access any part of the application. No data is stored in the browser — everything is fetched from the Flask and MySQL backend.
+
+The tech stack used was React with Vite for the frontend, Python Flask for the backend API, and MySQL as the database. React Router DOM was used for navigation between pages, and Axios was used for making HTTP requests from the frontend to the backend.
+
+
+1. WHAT IS REACT ROUTER AND HOW DID I IMPLEMENT A PROTECTED ROUTE
+
+React Router is a library that allows a React application to have multiple pages and navigate between them without doing a full page reload in the browser. In a normal website, clicking a link causes the browser to request a completely new HTML page from the server. React Router prevents this by intercepting navigation and rendering different components based on the URL, keeping the experience fast and smooth.
+
+In my application, I set up React Router in App.jsx using BrowserRouter, Routes, and Route components. The routes I defined were /login for the LoginPage, /register for the RegisterPage, /dashboard for the Dashboard, /applications for the ApplicationsPage, /add for the AddApplicationPage, and /edit/:id for the EditApplicationPage.
+
+A protected route is a route that only logged-in users can access. If someone who is not logged in tries to visit /dashboard directly, they should be redirected to /login instead of seeing the page. I implemented this using a component called ProtectedRoute. This component reads the user value from AuthContext. If the user is null, meaning they are not logged in, it returns a Navigate component pointing to /login. If the user exists, it renders an Outlet component which shows whatever protected page the user is trying to visit. In App.jsx, I wrapped all the protected routes inside a single Route element that uses ProtectedRoute as its element, so all child routes automatically get this protection without repeating the check in every page component.
+
+
+2. WHAT IS THE DIFFERENCE BETWEEN AXIOS AND FETCH AND WHY DID I USE AXIOS
+
+Both Axios and the built-in fetch function are used to make HTTP requests from a React application to a backend server. However, there are important differences between them. With fetch, the response is not automatically converted to JSON — you have to call .json() on the response manually every time. Axios automatically parses JSON responses, which means you can directly access the data from the response object. Another important difference is error handling. The fetch function only throws an error if there is a network failure, such as no internet connection. It does not throw an error for HTTP error responses like 404 Not Found or 500 Internal Server Error, so you have to manually check the response status every time. Axios, on the other hand, automatically throws an error for any response with a status code outside the 200 range, which makes error handling much cleaner using try and catch blocks. Also, with Axios you can create a configured instance once using axios.create, setting the base URL and credentials option in one place, and then reuse that instance throughout the entire application.
+
+I used Axios because of these advantages. I created a single instance in a file called api.js with the base URL set to an empty string so it works through the Vite proxy, and withCredentials set to true so the session cookie is automatically sent with every request. This meant I did not have to repeat configuration in every component that makes an API call.
+
+
+3. HOW DOES MY REACT APP KNOW IF THE USER IS LOGGED IN AND WHERE IS THAT STATE STORED
+
+The authentication state in my application is managed using React Context. I created an AuthContext in App.jsx which holds the user object and two functions called login and logout. The AuthContext is wrapped around the entire application so every component can access the current user without passing it down as props through multiple levels.
+
+When the application first loads, App.jsx makes a GET request to /api/me using Axios. This endpoint on the Flask backend checks whether there is a valid session cookie present in the request. If the user previously logged in and the session is still active, Flask returns the user's details and the React app stores that in state using setUser. If there is no valid session, Flask returns a 401 error and the user state remains null. This check happens automatically on every page load so the user stays logged in even after refreshing the browser.
+
+When the user logs in successfully through the LoginPage, the login function from AuthContext is called with the user data returned by Flask, which updates the user state. The Navbar component reads this user state using the useAuth hook to display the logged-in username. When the user clicks Logout, the logout function calls GET /api/logout which clears the session on the Flask side, and then sets the user state back to null in React, which causes the ProtectedRoute to redirect to the login page.
+
+
+4. WHAT WAS THE HARDEST PART OF CONNECTING REACT TO FLASK AND HOW DID I SOLVE IT
+
+The hardest part of connecting React to Flask was the cross-origin session cookie problem. When I first set up the project, the React Vite dev server was running on port 5173 and the Flask backend was running on port 5000. Even though both were on localhost, the browser treats different port numbers as different origins.
+
+The problem was that after a successful login, Flask would set a session cookie to remember the user. But when the next request was made from React to Flask for protected routes like /api/applications/stats or /api/applications, the browser was blocking the cookie from being sent because the request was going from one origin (port 5173 or 5174) to a different origin (port 5000). Flask had no way to identify who the user was, so it returned a 401 Unauthorized error on every protected request even after login.
+
+I tried several things to fix this, including changing the SESSION_COOKIE_SAMESITE setting in Flask to None and adding explicit CORS headers. These partially worked but were not reliable across all browsers because SameSite None requires HTTPS in modern browsers, and the local development environment uses HTTP.
+
+The proper solution was to configure a proxy in Vite. In vite.config.js, I added a server proxy rule that forwards all requests starting with /api from the Vite dev server to Flask on port 5000. This means the browser always thinks it is talking to the same server on the same port, which makes the requests same-origin. With same-origin requests, session cookies are stored and sent automatically without any issues. I also updated api.js to use an empty baseURL so Axios sends requests to the current origin, letting the Vite proxy handle the forwarding to Flask. This completely solved the problem and the session worked correctly from that point onwards.
+
+
+BONUS FEATURES IMPLEMENTED
+
+In addition to the core requirements, I also implemented a search feature that allows the user to filter applications by typing a company name, role, or location in a search box. I added a sort feature that lets the user sort applications by newest first, oldest first, company name alphabetically, or by status. Both the search and sort work together with the status filter dropdown, so the user can combine all three to find exactly what they are looking for quickly.
+
+
+TECH STACK SUMMARY
+
+The frontend was built with React 18, Vite, React Router DOM version 6, and Axios. The backend was built with Python Flask, Flask-Bcrypt for password hashing, and Flask-CORS for cross-origin resource sharing configuration. The database used was MySQL 8.0 with two tables — users and applications. Authentication is handled using Flask server-side sessions with a secret key, and passwords are stored as bcrypt hashes so the actual password is never saved in the database.
