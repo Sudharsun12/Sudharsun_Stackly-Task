@@ -1,0 +1,168 @@
+SALES ANALYTICS DASHBOARD - WRITE UP
+Task 11 | Full Stack: React + Flask + MySQL | Data Visualisation with Recharts
+Author: Sudharsun A
+Date: August 2026
+================================================================================
+
+
+WHAT IS THIS PROJECT
+================================================================================
+
+The Sales Analytics Dashboard is a full stack web application built using React
+for the frontend, Flask for the backend, and MySQL as the database. The purpose
+of this project is to take raw sales data stored in a database and turn it into
+meaningful visual charts and key metrics that a business can use to understand
+their performance at a glance. Instead of showing a plain table of numbers, the
+dashboard presents the data as interactive charts including an area chart for
+monthly revenue, bar charts for categories and regions, a pie chart for category
+share, and a leaderboard table for the top performing products. The dashboard
+also includes four KPI cards at the top that show total revenue, total orders,
+average order value, and the best selling product. A filter bar allows the user
+to narrow down the data by date range and product category, and every chart on
+the page updates simultaneously when a filter is applied.
+
+
+BASIC IMPLEMENTATION
+================================================================================
+
+The project is structured into two main parts: the backend folder containing
+app.py and seed.py, and the frontend folder containing the React application.
+The database is a MySQL database called sales_analytics with three tables:
+categories, products, and sales. The categories table holds five categories
+which are Electronics, Clothing, Food, Books, and Sports. The products table
+holds fifteen products spread across those categories, each with a name, price,
+and a foreign key referencing the category it belongs to. The sales table holds
+280 records with each record storing the product sold, the quantity, the total
+amount, the date it was sold, and the region which is one of North, South, East,
+or West. All this data was inserted programmatically using seed.py, a Python
+script that connects to MySQL and uses cursor.executemany() to insert all rows
+in one operation rather than inserting them one by one manually.
+
+The backend is a Flask application with seven API endpoints. Each endpoint runs
+a SQL query, fetches the result, and returns it as a JSON response. Flask-CORS
+is used to allow the React frontend running on a different port to make requests
+to the Flask server without being blocked by the browser. The frontend is a Vite
+React application that uses Axios to make HTTP requests to these endpoints and
+Recharts to render the data as charts. The component structure follows the
+pattern described in the task: App.jsx holds the filter state and passes it as
+props to every chart component, and each component has a useEffect that re-fires
+whenever the filter values change, triggering a new API call and updating the
+chart with fresh data.
+
+
+QUESTION 1: Write out your monthly revenue SQL query and explain what
+DATE_FORMAT and GROUP BY do.
+================================================================================
+
+The monthly revenue SQL query is as follows:
+
+SELECT DATE_FORMAT(sold_on, '%b %Y') AS month,
+       YEAR(sold_on) AS yr,
+       MONTH(sold_on) AS mo,
+       SUM(total_amount) AS revenue
+FROM sales
+GROUP BY yr, mo, month
+ORDER BY yr, mo
+
+DATE_FORMAT is a MySQL function that converts a date column into a formatted
+string. In this query, it converts the sold_on column into a human readable
+label using the format '%b %Y', where %b gives the abbreviated month name like
+Jan, Feb, or Mar, and %Y gives the four digit year like 2025. So a date like
+2025-08-13 becomes the string "Aug 2025". This label is what appears on the
+X-axis of the area chart in the dashboard.
+
+GROUP BY is what makes this an aggregation query. Without GROUP BY, the SELECT
+statement would return every individual row from the sales table. With GROUP BY
+YEAR(sold_on), MONTH(sold_on), it tells MySQL to collapse all the rows that
+share the same year and month into a single output row. Then SUM(total_amount)
+adds up the total_amount values from all those collapsed rows to give the total
+revenue for that month. The ORDER BY yr, mo at the end ensures the results come
+out in chronological order from oldest to newest, rather than in alphabetical
+order by month name, which would be incorrect for a time series chart.
+
+
+QUESTION 2: When the user changes the date filter, how do your charts re-fetch?
+Explain the useEffect dependency that triggers the new API call.
+================================================================================
+
+In App.jsx, the filter values are stored in React state using two state
+variables. The first is called filters which holds the current values typed or
+selected in the filter bar form fields. The second is called applied which holds
+the values that were last confirmed by clicking the Apply Filters button. Every
+chart component receives the applied state as a prop called filters.
+
+Inside each chart component, there is a useEffect hook that looks like this:
+
+useEffect(() => {
+  fetchData(filters);
+}, [filters.from, filters.to, filters.category]);
+
+The useEffect hook runs a side effect, which in this case is an API call to
+Flask, after the component renders. The second argument to useEffect is called
+the dependency array. React watches every value listed inside this array and
+re-runs the effect function whenever any of those values change. So when the
+user changes the from date, or the to date, or the category dropdown, and then
+clicks Apply, the applied state in App.jsx updates with the new values. Because
+every chart component is receiving applied as props, React detects that
+filters.from, filters.to, or filters.category has changed and immediately
+re-runs the useEffect in each component. This fires a new Axios GET request to
+Flask with the new values passed as query parameters, for example
+/api/kpis?from=2025-01-01&to=2025-06-30&category=Electronics. Flask reads those
+parameters, adds WHERE conditions to the SQL query, and returns filtered data.
+All six chart components and the four KPI cards do this at the same time, which
+is why the entire dashboard updates simultaneously when a filter is applied.
+
+
+QUESTION 3: Difference between Bar Chart and Line Chart - when do you use each.
+================================================================================
+
+A bar chart is used when you want to compare discrete, separate categories
+against each other. Each category is represented by a vertical or horizontal
+bar, and the height or length of the bar represents its value. Bar charts are
+ideal when the categories have no natural order or connection between them.
+In this dashboard, the bar chart is used for revenue by category because
+Electronics, Clothing, Food, Books, and Sports are separate groups with no
+relationship to each other. The viewer can immediately see which category brings
+in the most revenue just by comparing bar heights. The horizontal bar chart used
+for revenue by region works the same way, comparing four independent regions
+against each other.
+
+A line chart or area chart is used when you want to show how a value changes
+over continuous time. The line connecting the data points communicates the
+direction and speed of change between time periods. It shows trends, peaks, and
+dips in a way that a bar chart cannot. In this dashboard, the area chart is used
+for monthly revenue because the months form a continuous timeline and the
+direction of the line between months tells a story about whether sales are
+growing or declining. An area chart is like a line chart but with the area
+beneath the line filled in, which makes the overall volume of revenue more
+visually prominent. The general rule is to use a bar chart when comparing
+categories and to use a line or area chart when showing change over time.
+
+
+QUESTION 4: What does ResponsiveContainer do in Recharts and why is it
+important?
+================================================================================
+
+Recharts chart components like AreaChart, BarChart, and PieChart require an
+explicit width and height in pixels to render correctly. If you write the chart
+directly without any wrapper, you have to hardcode the dimensions, for example
+width={800} height={300}. This works fine on one screen size but breaks on
+smaller or larger screens because the chart will either overflow its container
+or leave large empty spaces.
+
+ResponsiveContainer solves this by wrapping the chart and listening to the size
+of its parent HTML element using a ResizeObserver. Instead of hardcoding the
+width, you write width="100%" which means the ResponsiveContainer fills its
+parent element completely. Whenever the parent element changes size, such as
+when the browser window is resized or when the layout shifts on a smaller
+screen, the ResponsiveContainer detects the new dimensions and passes the
+correct pixel values down to the chart component automatically. This means the
+chart re-renders at the new correct size without any extra code or CSS. Every
+chart in this dashboard is wrapped in a ResponsiveContainer with width set to
+100 percent, which is why the charts scale properly whether the dashboard is
+viewed on a full desktop monitor or on a smaller laptop screen.
+
+
+================================================================================
+End of Write Up | Task 11 | Sudharsun A | August 2026
+================================================================================
