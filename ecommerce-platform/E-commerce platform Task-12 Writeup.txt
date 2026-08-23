@@ -1,0 +1,344 @@
+================================================================
+  Task 12 – E-Commerce Platform (ShopSphere)
+  Full Stack: React + Flask + MySQL
+  Submitted by: Sudharsun A
+================================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  IMPLEMENTATION OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Built a fully functional E-Commerce platform called ShopSphere
+with two sides — a customer store and an admin panel.
+
+Backend (Flask + MySQL):
+  - Single app.py with 12 API endpoints covering auth, products,
+    categories, orders, and admin summary.
+  - Flask sessions for login state, Flask-Bcrypt for password
+    hashing, Flask-CORS for React communication.
+  - seed.py creates the database, all 5 tables, 2 users, 5
+    categories, and 20 products with real Unsplash images.
+
+Frontend (React + Vite):
+  - 13 pages across customer and admin flows.
+  - CartContext and AuthContext for global state management.
+  - React Router v6 with ProtectedRoute and AdminRoute guards.
+  - Axios with withCredentials for session-based API calls.
+  - Matching style system from previous tasks — Inter font,
+    indigo/cyan gradient, CSS variables, dark mode toggle.
+
+Folder Structure (clean, as specified):
+  ecommerce-platform/
+  ├── backend/
+  │   ├── app.py
+  │   ├── seed.py
+  │   └── requirements.txt
+  └── frontend/
+      └── src/
+          ├── context/   (CartContext, AuthContext)
+          ├── components/(Navbar, Footer, ProductCard,
+          │              ProtectedRoute, AdminRoute)
+          └── pages/     (Home, ProductDetail, Cart,
+                          Checkout, Orders, Login, Register,
+                          admin/AdminProducts, ProductForm,
+                          AdminOrders)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CHALLENGES FACED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Product Images — Several Unsplash photo IDs did not load
+   without an API key. Had to individually verify and replace
+   broken URLs with working photo IDs for each product.
+
+2. Windows Encoding — Python's print() with emoji (✅) caused
+   UnicodeEncodeError on Windows cp1252 terminals. Fixed by
+   adding sys.stdout.reconfigure(encoding='utf-8') at the top
+   of seed.py.
+
+3. Duplicate Seeding — Running seed.py twice inserted duplicate
+   products because INSERT IGNORE only skips on unique key
+   conflicts. Resolved by using TRUNCATE before inserting to
+   keep data clean on every run.
+
+4. Session + CORS — Flask sessions did not persist across React
+   requests until withCredentials: true was set on the Axios
+   instance and supports_credentials=True on Flask-CORS.
+
+5. Stock Validation Order — Had to ensure ALL items were
+   validated for stock BEFORE any database write. An early
+   partial insert would have deducted stock even if the order
+   failed midway.
+
+
+================================================================
+  WRITE-UP ANSWERS
+================================================================
+
+
+────────────────────────────────────────────────────────────────
+Q1. What is React Context API and why is it better than prop
+    drilling for the cart? Give a real example from your code.
+────────────────────────────────────────────────────────────────
+
+React Context API is a built-in way to share state across
+components without passing it as props through every level of
+the component tree. It creates a "global store" that any
+component can read or update directly.
+
+Why it's better than prop drilling:
+  Without Context, to show the cart count in the Navbar and
+  also allow the ProductCard to add items, you would have to
+  pass cartItems and addToCart down like this:
+
+    App → Navbar (props)
+    App → Home → ProductCard (props) → addToCart (props)
+    App → Cart → CartItem (props)
+
+  This is "prop drilling" — every middle component receives
+  props it doesn't use, just to pass them further down. It
+  makes code messy and hard to maintain.
+
+  With CartContext, any component calls useCart() directly:
+
+    const { cartItems, addToCart } = useCart()
+
+  No props needed. Clean, direct, and scalable.
+
+Real example from CartContext.jsx:
+
+  ┌─────────────────────────────────────────────────────┐
+  │ // context/CartContext.jsx                           │
+  │                                                     │
+  │ const CartContext = createContext()                  │
+  │                                                     │
+  │ export function CartProvider({ children }) {         │
+  │   const [cartItems, setCartItems] = useState([])    │
+  │                                                     │
+  │   function addToCart(product, quantity = 1) {       │
+  │     setCartItems(prev => {                          │
+  │       const exists = prev.find(i => i.id===product.id) │
+  │       if (exists) {                                 │
+  │         return prev.map(i =>                        │
+  │           i.id === product.id                       │
+  │             ? { ...i, qty: i.qty + quantity }       │
+  │             : i                                     │
+  │         )                                           │
+  │       }                                             │
+  │       return [...prev, { ...product, qty: quantity }] │
+  │     })                                              │
+  │   }                                                 │
+  │                                                     │
+  │   const cartCount = cartItems.reduce(               │
+  │     (sum, i) => sum + i.qty, 0                      │
+  │   )                                                 │
+  │                                                     │
+  │   return (                                          │
+  │     <CartContext.Provider value={{                  │
+  │       cartItems, addToCart, cartCount               │
+  │     }}>                                             │
+  │       {children}                                    │
+  │     </CartContext.Provider>                         │
+  │   )                                                 │
+  │ }                                                   │
+  │                                                     │
+  │ export const useCart = () => useContext(CartContext) │
+  └─────────────────────────────────────────────────────┘
+
+  Usage in Navbar.jsx (cart badge):
+    const { cartCount } = useCart()
+    <span className="cart-badge">{cartCount}</span>
+
+  Usage in ProductCard.jsx (add button):
+    const { addToCart } = useCart()
+    <button onClick={() => addToCart(product, 1)}>
+      Add to Cart
+    </button>
+
+  Both components access the SAME cart state directly —
+  no props passed from any parent.
+
+
+────────────────────────────────────────────────────────────────
+Q2. Why does order_items store unit_price instead of reading
+    the product price at the time of display?
+────────────────────────────────────────────────────────────────
+
+order_items stores unit_price at the moment of purchase to
+preserve the historical price of the transaction.
+
+The problem with reading product price at display time:
+  If a customer ordered Headphones at Rs.4999 today, and the
+  admin changes the price to Rs.6999 tomorrow — the customer's
+  order history would show Rs.6999 instead of Rs.4999. That
+  is factually wrong and legally a problem for invoicing.
+
+By storing unit_price in order_items:
+  - The price the customer paid is frozen at checkout time.
+  - Future product price changes do NOT affect past orders.
+  - Order history always shows the correct amount paid.
+  - Total amount in the orders table will always match the
+    sum of (unit_price × quantity) in order_items.
+
+This is how every real e-commerce system (Amazon, Flipkart)
+works — the invoice price is always the price at time of
+purchase, not the current price.
+
+In the backend (app.py), price is captured at checkout:
+
+  ┌─────────────────────────────────────────────────────┐
+  │ # Fetch current price at the time of order          │
+  │ cursor.execute(                                     │
+  │   'SELECT price FROM products WHERE id = %s',      │
+  │   (item['product_id'],)                             │
+  │ )                                                   │
+  │ p = cursor.fetchone()                               │
+  │ unit_price = float(p['price'])   # captured now     │
+  │                                                     │
+  │ # Saved permanently in order_items                  │
+  │ cursor.execute(                                     │
+  │   'INSERT INTO order_items                          │
+  │    (order_id, product_id, quantity, unit_price)     │
+  │    VALUES (%s, %s, %s, %s)',                        │
+  │   (order_id, item['product_id'],                   │
+  │    item['quantity'], unit_price)                    │
+  │ )                                                   │
+  └─────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────
+Q3. What happens in your backend if a customer tries to order
+    10 units of a product that only has 3 in stock?
+    Show the exact validation code.
+────────────────────────────────────────────────────────────────
+
+The backend checks every item's stock BEFORE inserting anything
+into the database. If any item fails the check, a 400 error is
+returned immediately and no order is created.
+
+Exact validation code from app.py:
+
+  ┌─────────────────────────────────────────────────────┐
+  │ @app.route('/api/orders', methods=['POST'])          │
+  │ def place_order():                                   │
+  │     ...                                             │
+  │     # Validate ALL stock BEFORE touching any data   │
+  │     for item in items:                              │
+  │         cursor.execute(                             │
+  │           'SELECT name, stock FROM products         │
+  │            WHERE id = %s',                          │
+  │           (item['product_id'],)                     │
+  │         )                                           │
+  │         product = cursor.fetchone()                 │
+  │                                                     │
+  │         if not product:                             │
+  │             return jsonify({                        │
+  │               'error': f'Product ID               │
+  │                {item["product_id"]} not found'      │
+  │             }), 400                                 │
+  │                                                     │
+  │         if product['stock'] < item['quantity']:     │
+  │             return jsonify({                        │
+  │               'error': (                            │
+  │                 f'"{product["name"]}" only has      │
+  │                 {product["stock"]} unit(s) in stock.│
+  │                 You requested {item["quantity"]}.'  │
+  │               )                                     │
+  │             }), 400                                 │
+  │                                                     │
+  │     # Only reaches here if ALL items pass           │
+  │     # Then insert order and reduce stock...         │
+  └─────────────────────────────────────────────────────┘
+
+What the customer sees:
+  HTTP 400 Bad Request
+  {
+    "error": "\"Wireless Headphones\" only has 3 unit(s)
+              in stock. You requested 10."
+  }
+
+Key design decision:
+  Stock is only reduced AFTER the full order is validated.
+  This prevents partial stock deductions — either the entire
+  order succeeds or nothing changes in the database.
+
+
+────────────────────────────────────────────────────────────────
+Q4. What is the difference between ProtectedRoute and
+    AdminRoute in your app? Show both components.
+────────────────────────────────────────────────────────────────
+
+Both are wrapper components that guard routes, but they check
+different conditions:
+
+ProtectedRoute — checks if user is LOGGED IN
+  Any authenticated user (customer or admin) can pass.
+  If not logged in → redirect to /login
+
+  ┌─────────────────────────────────────────────────────┐
+  │ // components/ProtectedRoute.jsx                    │
+  │                                                     │
+  │ import { Navigate } from 'react-router-dom'         │
+  │ import { useAuth } from '../context/AuthContext'    │
+  │                                                     │
+  │ export default function ProtectedRoute({ children })│
+  │ {                                                   │
+  │   const { user, loading } = useAuth()              │
+  │                                                     │
+  │   if (loading) return <p>Loading...</p>             │
+  │   if (!user) return <Navigate to="/login" replace />│
+  │   return children                                   │
+  │ }                                                   │
+  └─────────────────────────────────────────────────────┘
+
+  Used for: Home, ProductDetail, Cart, Checkout, Orders
+  Rule: Must be logged in (any role)
+
+
+AdminRoute — checks if user is LOGGED IN + is ADMIN
+  Only users with role = 'admin' can pass.
+  If not logged in → redirect to /login
+  If logged in but not admin → redirect to /
+
+  ┌─────────────────────────────────────────────────────┐
+  │ // components/AdminRoute.jsx                        │
+  │                                                     │
+  │ import { Navigate } from 'react-router-dom'         │
+  │ import { useAuth } from '../context/AuthContext'    │
+  │                                                     │
+  │ export default function AdminRoute({ children }) {  │
+  │   const { user, loading, isAdmin } = useAuth()     │
+  │                                                     │
+  │   if (loading)  return <p>Loading...</p>            │
+  │   if (!user)    return <Navigate to="/login"        │
+  │                           replace />                │
+  │   if (!isAdmin) return <Navigate to="/" replace />  │
+  │   return children                                   │
+  │ }                                                   │
+  └─────────────────────────────────────────────────────┘
+
+  Used for: /admin/products, /admin/orders, /admin/products/add
+  Rule: Must be logged in AND role must be 'admin'
+
+Summary:
+  ┌──────────────────┬───────────────┬───────────────────┐
+  │ Scenario         │ ProtectedRoute │ AdminRoute        │
+  ├──────────────────┼───────────────┼───────────────────┤
+  │ Not logged in    │ → /login      │ → /login          │
+  │ Customer logged  │ ✅ Allow       │ → / (home)        │
+  │ Admin logged in  │ ✅ Allow       │ ✅ Allow           │
+  └──────────────────┴───────────────┴───────────────────┘
+
+
+================================================================
+  TEST ACCOUNTS
+================================================================
+
+  Admin    -> admin@shopsphere.com    / admin123
+  Customer -> customer@shopsphere.com / customer123
+
+================================================================
+  END OF WRITE-UP
+================================================================
