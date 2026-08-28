@@ -1,0 +1,17 @@
+.footer {
+  background: var(--footer-bg);
+  color: var(--footer-text);
+  margin-top: 3rem;
+  padding: 1rem 1.25rem;
+  text-align: center;
+  transition: background 0.3s ease;
+}
+
+.footer__copy {
+  font-size: 0.85rem;
+  color: var(--footer-text);
+}
+
+.footer__copy span {
+  color: #ef4444;
+}

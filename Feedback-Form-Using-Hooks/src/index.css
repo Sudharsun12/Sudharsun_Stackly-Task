@@ -1,0 +1,55 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Light Mode Tokens ─────────────────────────────── */
+:root {
+  --primary:      #6366f1;
+  --primary-h:    #4f46e5;
+  --success:      #22c55e;
+  --error:        #ef4444;
+  --bg:           #f8fafc;
+  --surface:      #ffffff;
+  --surface-2:    #f1f5f9;
+  --text:         #1e293b;
+  --text-2:       #475569;
+  --muted:        #64748b;
+  --border:       #e2e8f0;
+  --radius:       10px;
+  --shadow:       0 2px 12px rgba(0, 0, 0, 0.07);
+  --quote-bg:     #eef2ff;
+  --quote-border: #6366f1;
+  --footer-bg:    #1e293b;
+  --footer-text:  #cbd5e1;
+  --toggle-bg:    #e2e8f0;
+  --toggle-knob:  #6366f1;
+}
+
+/* ── Dark Mode Tokens ──────────────────────────────── */
+[data-theme="dark"] {
+  --bg:           #0f172a;
+  --surface:      #1e293b;
+  --surface-2:    #273449;
+  --text:         #f1f5f9;
+  --text-2:       #cbd5e1;
+  --muted:        #94a3b8;
+  --border:       #334155;
+  --shadow:       0 2px 12px rgba(0, 0, 0, 0.4);
+  --quote-bg:     #1e2a45;
+  --quote-border: #818cf8;
+  --footer-bg:    #020617;
+  --footer-text:  #94a3b8;
+  --toggle-bg:    #334155;
+  --toggle-knob:  #818cf8;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  line-height: 1.6;
+  transition: background 0.3s ease, color 0.3s ease;
+}
