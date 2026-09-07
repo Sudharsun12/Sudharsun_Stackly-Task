@@ -1,0 +1,11 @@
+node_modules/
+__pycache__/
+*.pyc
+.env
+dist/
+.DS_Store
+
+# Uploaded product images — never commit actual files to git
+# The .gitkeep file ensures the folder structure is preserved when someone clones the repo
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep

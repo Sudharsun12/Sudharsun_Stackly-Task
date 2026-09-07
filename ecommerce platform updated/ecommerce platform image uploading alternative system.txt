@@ -1,0 +1,219 @@
+Task 14 – Image Upload System
+Write-up
+Submitted by: Sudharsun
+Date: September 7, 2025
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+IMPLEMENTATION OVERVIEW
+────────────────────────────────────────────────────────────────────────────────
+For Task 14, I upgraded the existing Task 12 e-commerce platform by replacing
+the Picsum placeholder image URLs with a real file upload system. On the backend,
+I added a new POST /api/upload route in Flask that accepts an image file from the
+admin, validates the file type to allow only png, jpg, jpeg, and webp formats,
+enforces a 2 MB size limit using Flask's MAX_CONTENT_LENGTH configuration, and
+generates a unique filename using Python's uuid4 module before saving the file to
+the server's static/uploads/ folder. Flask automatically serves any file placed
+inside the static/ folder, so no additional route was needed to display the
+images. On the frontend, I replaced the plain image URL text input in the admin
+Product Form with a file picker input. When the admin selects an image, an
+instant preview is shown using the browser's URL.createObjectURL() method, which
+reads the file directly from memory without making any network request. On form
+submit, the file is uploaded first to /api/upload, the returned URL is captured,
+and then the product is saved with that URL in a second API call. I also updated
+ProductCard, ProductDetail, and the Admin Products table to build the full image
+URL using the Flask base URL instead of relying on Picsum links.
+
+
+CHALLENGES FACED
+────────────────────────────────────────────────────────────────────────────────
+The most significant challenge I faced during this task was a case-sensitivity
+bug while testing the upload API in Postman. I was sending the file under the
+key name "Image" with a capital I, but the Flask route was checking for
+request.files['image'] with a lowercase i. Since Python is case-sensitive, the
+key lookup failed and Flask returned a 400 Bad Request error with the message
+"No file provided" every time, even though the file was correctly attached. To
+debug this, I temporarily added logging to the route to print what keys were
+actually present in request.files, which revealed the mismatch immediately.
+Fixing the key name in Postman to lowercase "image" resolved the issue. Another
+challenge was understanding the two-step submit flow on the frontend — since you
+cannot send a binary file and JSON data together in a single request easily, the
+frontend had to first upload the image and wait for the URL from Flask before
+making a second request to save the product details. Once that pattern was clear,
+the implementation came together without further issues.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SUBMISSION QUESTIONS AND ANSWERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+Q1. What is multipart/form-data and why is it different from a normal JSON
+    request when uploading files?
+────────────────────────────────────────────────────────────────────────────────
+
+multipart/form-data is a special encoding format used to send binary data such
+as image files over HTTP. In a normal JSON request, data is sent as plain text
+in the request body with the Content-Type set to application/json. For example,
+when adding a product, we send name, price, and stock as a JSON object. However,
+files are binary data and cannot be represented as plain text without corruption.
+This is where multipart/form-data comes in — it splits the request body into
+multiple separate parts, each with its own headers, separated by a unique
+boundary string that the server uses to tell where one part ends and the next
+begins.
+
+For example, a multipart request looks like this internally:
+
+    ------FormBoundaryXYZ123
+    Content-Disposition: form-data; name="image"; filename="laptop.jpg"
+    Content-Type: image/jpeg
+
+    [binary file data here]
+    ------FormBoundaryXYZ123--
+
+On the frontend, we create a FormData object and append the file to it, then
+send it via Axios with the Content-Type header set to multipart/form-data. On
+the Flask backend, the file is accessible via request.files['image'] which
+automatically parses the multipart body. A normal JSON request would not be able
+to carry this binary file data at all.
+
+
+Q2. How do you generate a unique filename for every upload?
+    What would happen if you didn't?
+────────────────────────────────────────────────────────────────────────────────
+
+To generate a unique filename, I use Python's uuid module with uuid4(), which
+creates a completely random 128-bit identifier. The .hex property converts it
+into a clean 32-character alphanumeric string. I then append the original file
+extension to it to preserve the file type. Here is the exact code used:
+
+    import uuid
+
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_name = f"{uuid.uuid4().hex}.{ext}"
+
+    # Example output: "a3f8b2c1d4e5f6a7b8c9d0e1f2a3b4c5.jpg"
+
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
+    file.save(filepath)
+
+If I did not generate a unique filename and instead saved files using their
+original names, two admins uploading a file both named "photo.jpg" would cause
+the second upload to silently overwrite the first file on the server. The product
+that referenced the original file would then display the wrong image with no
+error or warning. This kind of silent data corruption is very hard to detect and
+debug. UUID4 guarantees that every uploaded file gets a globally unique name,
+making overwriting practically impossible. The probability of two uuid4 values
+colliding is approximately 1 in 5.3 x 10^36, which is negligible.
+
+
+Q3. What validation did you add to block non-image files or oversized files?
+    Show the exact code.
+────────────────────────────────────────────────────────────────────────────────
+
+I added two layers of validation — one for file type and one for file size.
+
+VALIDATION 1 — File Type (Extension Check):
+
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+    def allowed_file(filename):
+        return '.' in filename and \
+               filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+This function checks two things:
+- That the filename contains a dot at all (so files with no extension are rejected)
+- That the part after the last dot, converted to lowercase, is in the allowed set
+
+rsplit('.', 1) splits the filename from the right at the last dot only, with a
+maximum of 1 split. This correctly handles filenames like "archive.tar.gz" by
+returning only "gz" as the extension. The .lower() ensures that "JPG", "jpg",
+and "Jpg" are all treated the same.
+
+Inside the route, this is used as:
+
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file type. Allowed: png, jpg, jpeg, webp"}), 400
+
+VALIDATION 2 — File Size (2 MB Limit):
+
+    MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB in bytes = 2,097,152 bytes
+    app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
+
+MAX_CONTENT_LENGTH is a built-in Flask configuration key. When set, Flask checks
+the incoming request size before the route function even runs. If the file exceeds
+2 MB, Flask automatically returns a 413 Request Entity Too Large response without
+any additional code needed inside the route.
+
+VALIDATION 3 — Empty File Check:
+
+    if 'image' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    file = request.files['image']
+
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+
+The first check ensures the file key exists in the request. The second check
+handles the case where the file input is present in the form but the user did not
+actually select a file — in this case, Flask sets the filename to an empty string.
+
+
+Q4. Where does Flask store the uploaded file, and what URL pattern does the
+    frontend use to display it afterward?
+────────────────────────────────────────────────────────────────────────────────
+
+STORAGE — Where Flask Saves the File:
+
+The uploaded file is saved inside the Flask backend's static/uploads/ folder.
+This folder is created automatically when the server starts using:
+
+    UPLOAD_FOLDER = 'static/uploads'
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+When a file is uploaded, the full disk path is built using os.path.join and the
+file is written to disk using file.save():
+
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
+    file.save(filepath)
+
+So if the unique name is "a3f8b2c1d4e5.jpg", the file is physically stored at:
+
+    backend/static/uploads/a3f8b2c1d4e5.jpg
+
+SERVING — How Flask Makes It Accessible via URL:
+
+Flask has built-in static file serving. Any file placed inside the static/
+folder of a Flask application is automatically accessible via the /static/ URL
+path. No additional route is needed. After saving the file, the route returns
+the URL path to the frontend:
+
+    image_url = f"/static/uploads/{unique_name}"
+    return jsonify({"image_url": image_url}), 201
+
+So the file saved at backend/static/uploads/a3f8b2c1d4e5.jpg is accessible at:
+
+    http://localhost:5000/static/uploads/a3f8b2c1d4e5.jpg
+
+DISPLAY — How the Frontend Uses the URL:
+
+The frontend receives this path from the upload response and stores it in the
+database via the product save request. When displaying the image in ProductCard,
+ProductDetail, or the Admin table, the frontend constructs the full URL by
+prepending the Flask backend's base URL:
+
+    <img src={`http://localhost:5000${product.image_url}`} />
+
+    // product.image_url = "/static/uploads/a3f8b2c1d4e5.jpg"
+    // Full URL = "http://localhost:5000/static/uploads/a3f8b2c1d4e5.jpg"
+
+This means the image is always served from our own server. Unlike Picsum, which
+regenerated a random photo on every request, this URL always returns the exact
+same file that the admin uploaded — even after a page refresh.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+End of Write-up — Task 14 Image Upload System
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
