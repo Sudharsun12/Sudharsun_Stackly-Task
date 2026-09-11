@@ -1,0 +1,552 @@
+================================================================================
+  TASK 15 WRITE-UP — Pagination + Debounced Search
+  E-Commerce Platform (ShopSphere)
+  Name   : Sudharsun
+  Task   : Task 15 — Full Stack React + Flask + MySQL
+  Date   : September 2026
+================================================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 1 — IMPLEMENTATION OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This task was an upgrade on top of the Task 12 E-Commerce project (ShopSphere).
+No new repository was created. Only 5 files were changed and 2 new files
+were added.
+
+────────────────────────────────────────────────────────────────────────────────
+FILES CHANGED
+────────────────────────────────────────────────────────────────────────────────
+
+BACKEND (Modified):
+  └── backend/app.py
+        • GET /api/products — updated to accept ?page, ?limit, ?search,
+          ?category, ?sort and return a paginated JSON response instead
+          of a plain array.
+        • GET /api/orders   — updated to accept ?page, ?limit and return
+          paginated orders for the admin panel.
+
+FRONTEND (New Files):
+  ├── src/hooks/useDebounce.js       ← NEW custom React hook
+  └── src/components/Pagination.jsx ← NEW reusable component
+
+FRONTEND (Modified):
+  ├── src/pages/Home.jsx             — wired debounce + pagination
+  ├── src/pages/admin/AdminOrders.jsx — wired pagination
+  └── src/index.css                  — added pagination button styles
+
+────────────────────────────────────────────────────────────────────────────────
+WHAT WAS IMPLEMENTED
+────────────────────────────────────────────────────────────────────────────────
+
+1. BACKEND — PAGINATED PRODUCTS ENDPOINT
+   The GET /api/products endpoint previously fetched every single product
+   from the database in one query and returned them as a plain JSON array.
+   This was fine for 20 products but would be very slow and memory-heavy
+   with hundreds of products.
+
+   The endpoint was rewritten using a two-query SQL pattern:
+
+   Query 1 — COUNT (to calculate total pages):
+     SELECT COUNT(*) AS total
+     FROM products p
+     LEFT JOIN categories c ON p.category_id = c.id
+     WHERE [same filters as before]
+
+   Query 2 — Fetch only the current page:
+     SELECT p.*, c.name AS category_name
+     FROM products p
+     LEFT JOIN categories c ON p.category_id = c.id
+     WHERE [same filters]
+     ORDER BY [sort]
+     LIMIT 8 OFFSET [calculated offset]
+
+   The new JSON response shape:
+     {
+       "products":    [ ...8 items... ],
+       "total":       22,
+       "page":        1,
+       "limit":       8,
+       "total_pages": 3
+     }
+
+   The frontend needs "total" and "total_pages" to know how many page
+   buttons to render. Without the COUNT query, the frontend would have
+   no idea how many pages exist.
+
+2. BACKEND — PAGINATED ORDERS ENDPOINT (ADMIN)
+   The same two-query pattern was applied to GET /api/orders.
+   Default: ?page=1&limit=10.
+   Response shape is identical (orders, total, page, limit, total_pages).
+
+3. FRONTEND — useDebounce CUSTOM HOOK
+   File: src/hooks/useDebounce.js
+
+   This hook wraps any changing value (like a search input) and delays
+   updating the returned "debounced" value until the user stops changing
+   it for a specified number of milliseconds (default: 300ms).
+
+   Usage in Home.jsx:
+     const debouncedSearch = useDebounce(search, 300)
+
+   The raw "search" state updates on every keystroke so the input box
+   feels instant. But "debouncedSearch" only updates after the user
+   pauses for 300ms — and that is the value sent to the API.
+
+4. FRONTEND — Pagination COMPONENT
+   File: src/components/Pagination.jsx
+
+   A fully reusable component that renders:
+     • ← Previous button (disabled on page 1)
+     • Numbered page buttons with smart windowing (max 5 visible,
+       centred on the current page, with "..." ellipsis for gaps)
+     • → Next button (disabled on last page)
+     • "Page X of Y" label
+
+   Props it accepts:
+     currentPage  → which page button to highlight
+     totalPages   → how many pages exist (controls number of buttons)
+     onPageChange → callback function called when user clicks a button
+
+   This single component is used in both:
+     • Home.jsx (for the product grid)
+     • AdminOrders.jsx (for the orders table)
+
+5. HOME.JSX UPDATES
+   New state variables added:
+     const [currentPage, setCurrentPage] = useState(1)
+     const [totalPages,  setTotalPages]  = useState(1)
+     const [totalCount,  setTotalCount]  = useState(0)
+     const [limit,       setLimit]       = useState(8)
+     const debouncedSearch = useDebounce(search, 300)
+
+   Three useEffect hooks:
+     Effect 1 — Loads categories on mount (unchanged).
+     Effect 2 — Resets currentPage to 1 when debouncedSearch,
+                category, or limit changes.
+     Effect 3 — Fetches products when currentPage, debouncedSearch,
+                category, sort, or limit changes.
+
+   New UI added:
+     • "Showing 8 of 22 products" result count label above the grid
+     • Items-per-page dropdown (8 / 16 / 24) — bonus feature
+     • <Pagination> component below the product grid
+     • window.scrollTo({ top: 0 }) on every page change
+
+6. ADMINORDERS.JSX UPDATES
+   Same pagination pattern applied:
+   Fetches /api/orders?page=currentPage&limit=10, displays result count
+   label, and renders <Pagination> below the orders list.
+
+────────────────────────────────────────────────────────────────────────────────
+BONUS FEATURES IMPLEMENTED
+────────────────────────────────────────────────────────────────────────────────
+
+  ✓ Skeleton loader cards  — already existed from Task 12, now scales
+                             to match the current "limit" setting
+  ✓ Items per page selector — dropdown to switch between 8, 16, 24
+  ✓ Scroll to top           — smooth scroll on every page change
+  ✓ Smart ellipsis          — pagination shows "..." for large page counts
+  ✓ Dark mode support       — pagination buttons use CSS variables,
+                             so they work in both light and dark mode
+  ✓ Accessibility           — aria-label and aria-current="page" on
+                             pagination buttons
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 2 — CHALLENGES FACED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CHALLENGE 1 — Frontend Breaking After Backend Response Format Changed
+─────────────────────────────────────────────────────────────────────
+Problem:
+  The original GET /api/products returned a plain array: [ {...}, {...} ]
+  After the backend change, it returns an object: { products: [...], total: 22 }
+
+  This immediately broke the frontend because Home.jsx was doing:
+    setProducts(r.data)
+  But r.data was now an object, not an array. The product grid would
+  render nothing and mapping over it would throw a TypeError.
+
+Solution:
+  Updated every .then() in the frontend to destructure the new shape:
+    setProducts(r.data.products)
+    setTotalPages(r.data.total_pages)
+    setTotalCount(r.data.total)
+
+Lesson learned:
+  Always update the frontend immediately after changing the API response
+  format. A mismatch between backend shape and frontend expectation is
+  one of the most common bugs in full-stack development.
+
+────────────────────────────────────────────────────────────────────────────────
+
+CHALLENGE 2 — Page Reset Logic When Search Changes
+────────────────────────────────────────────────────────────────────────────────
+Problem:
+  When on page 3 and typing a new search, the app would still request
+  page=3 of the new results — but the new search might only have 1 page.
+  The backend would return 0 products for page 3, making the page
+  appear empty even though results exist on page 1.
+
+Solution:
+  Added a dedicated useEffect that resets currentPage to 1 whenever
+  debouncedSearch, category, or limit changes:
+
+    useEffect(() => {
+      setCurrentPage(1)
+    }, [debouncedSearch, category, limit])
+
+  This fires before the fetch effect, so the API always gets page=1
+  when the filter criteria change.
+
+Lesson learned:
+  Pagination state and filter state are interconnected. Any time filters
+  change, page must reset. This is a common mistake in pagination
+  implementations — it seems obvious in hindsight but easy to miss.
+
+────────────────────────────────────────────────────────────────────────────────
+
+CHALLENGE 3 — Race Conditions With Fast Typing
+────────────────────────────────────────────────────────────────────────────────
+Problem:
+  Without debouncing, typing "samsung" quickly fires 7 API calls. If
+  the network is slow, response for "samsun" might arrive AFTER the
+  response for "samsung". The screen would then incorrectly show results
+  for "samsun" even though the user typed "samsung".
+
+Solution:
+  The useDebounce hook solves this entirely. Since only ONE API call
+  fires after the user stops typing, there is no race between multiple
+  in-flight requests for the same search. The cleanup function
+  (return () => clearTimeout(timer)) ensures stale timers never fire.
+
+Lesson learned:
+  Debouncing is not just about reducing server load — it also prevents
+  a class of subtle UI bugs caused by out-of-order API responses.
+
+────────────────────────────────────────────────────────────────────────────────
+
+CHALLENGE 4 — Building a Reusable Pagination Component
+────────────────────────────────────────────────────────────────────────────────
+Problem:
+  The task required Pagination.jsx to work for BOTH the Home page
+  (products) and the Admin Orders page. The challenge was designing it
+  to be truly stateless — it should not manage any page state itself.
+  All state must live in the parent.
+
+Solution:
+  Designed the component to receive everything it needs as props and
+  call back to the parent via onPageChange. The parent owns state;
+  the component only renders and fires callbacks:
+
+    <Pagination
+      currentPage={currentPage}     ← parent tells it what to highlight
+      totalPages={totalPages}        ← parent tells it how many buttons
+      onPageChange={setCurrentPage}  ← parent handles state update
+    />
+
+  This is the React "controlled component" pattern applied to pagination.
+
+Lesson learned:
+  Shared UI components must be stateless (or minimally stateful).
+  Push state up to the parent so the component can be reused anywhere
+  without carrying its own hidden state.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 3 — SUBMISSION QUESTIONS & ANSWERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+QUESTION 1:
+  What is LIMIT and OFFSET in SQL?
+  If you have 47 products and want page 3 with 8 per page, what are
+  the exact LIMIT and OFFSET values?
+────────────────────────────────────────────────────────────────────────────────
+
+ANSWER:
+
+  LIMIT and OFFSET are SQL clauses used together to fetch a specific
+  "slice" (page) of rows from a table instead of all rows at once.
+
+  LIMIT:
+    Controls HOW MANY rows the database returns.
+    LIMIT 8 → return at most 8 rows.
+
+  OFFSET:
+    Controls HOW MANY rows to SKIP before starting to return results.
+    OFFSET 0  → start from the very first row (page 1)
+    OFFSET 8  → skip the first 8 rows (page 2)
+    OFFSET 16 → skip the first 16 rows (page 3)
+
+  Formula:
+    OFFSET = (page_number - 1) × limit
+
+  For 47 products, page 3, 8 per page:
+    LIMIT  = 8
+    OFFSET = (3 - 1) × 8 = 16
+
+  This means:
+    The database skips rows 1–16 (pages 1 and 2) and returns rows
+    17–24 (the 8 products that belong to page 3).
+
+  Full SQL used in this project:
+    SELECT p.*, c.name AS category_name
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE 1=1
+    ORDER BY p.created_at DESC
+    LIMIT 8 OFFSET 16
+
+  Page breakdown for 47 products at 8 per page:
+    Page 1 → OFFSET 0  → rows 1–8   (8 products)
+    Page 2 → OFFSET 8  → rows 9–16  (8 products)
+    Page 3 → OFFSET 16 → rows 17–24 (8 products)
+    Page 4 → OFFSET 24 → rows 25–32 (8 products)
+    Page 5 → OFFSET 32 → rows 33–40 (8 products)
+    Page 6 → OFFSET 40 → rows 41–47 (7 products — last page)
+    Total pages = ceil(47 / 8) = 6
+
+────────────────────────────────────────────────────────────────────────────────
+QUESTION 2:
+  Explain how useDebounce works. What does the cleanup function
+  (return () => clearTimeout(timer)) do and why is it important?
+────────────────────────────────────────────────────────────────────────────────
+
+ANSWER:
+
+  useDebounce is a custom React hook that delays updating a value
+  until the user stops changing it for a set period of time (delay).
+
+  Here is the full hook:
+
+    export function useDebounce(value, delay = 300) {
+      const [debounced, setDebounced] = useState(value)
+
+      useEffect(() => {
+        const timer = setTimeout(() => {
+          setDebounced(value)
+        }, delay)
+
+        return () => clearTimeout(timer)
+      }, [value, delay])
+
+      return debounced
+    }
+
+  How it works step by step:
+
+    Step 1: The user types a character. "value" changes.
+    Step 2: useEffect re-runs because "value" changed.
+    Step 3: BEFORE running the new effect, React calls the cleanup
+            function from the PREVIOUS render — clearTimeout(timer).
+            This cancels the old 300ms timer that was counting down.
+    Step 4: A NEW 300ms timer starts.
+    Step 5: If the user types again within 300ms, go back to Step 2.
+            The new timer gets cancelled too.
+    Step 6: The user stops typing. 300ms passes without interruption.
+    Step 7: setTimeout fires → setDebounced(value) runs →
+            "debounced" updates → the API call triggers.
+
+  What the cleanup function does:
+    return () => clearTimeout(timer)
+
+    This line is the entire mechanism of debouncing. Every time React
+    re-runs the effect (on every keystroke), it FIRST runs the cleanup
+    from the previous run. This cancels the timer that was set during
+    the previous keystroke before a new one starts.
+
+  Why it is important:
+    Without the cleanup, every keystroke would schedule its own
+    independent 300ms timer and NONE of them would be cancelled.
+    Typing "samsung" (7 characters) would result in 7 timers all
+    firing at 300ms intervals — which is exactly the problem we are
+    trying to solve. The cleanup function ensures only the LAST timer
+    ever completes.
+
+    It also prevents a memory leak: if the component unmounts while
+    a timer is still counting down, the cleanup cancels it so
+    setDebounced never runs on an unmounted component.
+
+────────────────────────────────────────────────────────────────────────────────
+QUESTION 3:
+  Why do you reset currentPage to 1 when the search term changes?
+────────────────────────────────────────────────────────────────────────────────
+
+ANSWER:
+
+  When the search term changes, the set of matching products completely
+  changes. The number of results — and therefore the number of pages —
+  is different for every search.
+
+  Consider this scenario without the reset:
+    - User searches "electronics" → 18 results → 3 pages
+    - User navigates to page 3
+    - User clears the search and types "samsung" → 4 results → 1 page
+    - Without reset: the app requests page=3 for "samsung"
+    - The backend returns 0 products (there is no page 3 for "samsung")
+    - The user sees an empty grid even though results exist!
+
+  With the reset:
+    useEffect(() => {
+      setCurrentPage(1)
+    }, [debouncedSearch, category, limit])
+
+    Whenever the debounced search, category filter, or per-page limit
+    changes, currentPage is immediately reset to 1. This ensures:
+      1. The user always sees the first page of their new results
+      2. The API always gets a valid page number
+      3. The pagination buttons always reflect the correct current state
+
+  The rule is: whenever the FILTER criteria change, the PAGE must reset.
+  Page number is only meaningful within the context of a specific
+  search/filter combination.
+
+────────────────────────────────────────────────────────────────────────────────
+QUESTION 4:
+  Your Pagination component is used in two different pages. What props
+  does it accept and how does the parent control which page is active?
+────────────────────────────────────────────────────────────────────────────────
+
+ANSWER:
+
+  The Pagination component accepts exactly 3 props:
+
+  ┌──────────────┬────────────┬─────────────────────────────────────────────┐
+  │ Prop         │ Type       │ Description                                 │
+  ├──────────────┼────────────┼─────────────────────────────────────────────┤
+  │ currentPage  │ number     │ The page number to highlight as "active"    │
+  │ totalPages   │ number     │ Total number of pages (controls how many    │
+  │              │            │ buttons to render)                          │
+  │ onPageChange │ function   │ Callback called with the new page number    │
+  │              │            │ when the user clicks any button             │
+  └──────────────┴────────────┴─────────────────────────────────────────────┘
+
+  How the parent controls which page is active:
+    The Pagination component is STATELESS — it has no internal state
+    for the current page. The parent component owns the state.
+
+    In Home.jsx:
+      const [currentPage, setCurrentPage] = useState(1)
+      ...
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
+
+    When the user clicks "Page 3":
+      1. Pagination component calls onPageChange(3)
+      2. setCurrentPage(3) runs in Home.jsx → state updates to 3
+      3. React re-renders — currentPage prop becomes 3
+      4. Pagination highlights button "3" as active
+      5. The fetch useEffect triggers — API called with page=3
+      6. New products render
+
+    In AdminOrders.jsx it works identically:
+      const [currentPage, setCurrentPage] = useState(1)
+      ...
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
+
+  This is the React "lifting state up" pattern. The same Pagination
+  component works in both pages because it never assumes anything
+  about what kind of data it is paginating — it simply renders
+  buttons based on numbers and fires a callback when clicked.
+  The parent handles everything else (fetching, state, rendering).
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 4 — API ENDPOINTS SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GET /api/products
+  Query params:
+    page     (default: 1)        — which page to fetch
+    limit    (default: 8)        — items per page
+    search   (default: "")       — filter by name or description
+    category (default: "")       — filter by category name
+    sort     (default: "newest") — price_asc | price_desc | newest
+
+  Example requests:
+    /api/products?page=1&limit=8
+    /api/products?page=2&limit=8
+    /api/products?page=1&limit=8&search=samsung
+    /api/products?page=1&limit=8&category=Electronics&sort=price_asc
+
+  Response:
+    {
+      "products":    [ ...8 product objects... ],
+      "total":       22,
+      "page":        1,
+      "limit":       8,
+      "total_pages": 3
+    }
+
+────────────────────────────────────────────────────────────────────────────────
+
+GET /api/orders  (admin only — requires admin session)
+  Query params:
+    page  (default: 1)  — which page to fetch
+    limit (default: 10) — orders per page
+
+  Example requests:
+    /api/orders?page=1&limit=10
+    /api/orders?page=2&limit=10
+
+  Response:
+    {
+      "orders":      [ ...10 order objects with items... ],
+      "total":       35,
+      "page":        1,
+      "limit":       10,
+      "total_pages": 4
+    }
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 5 — KEY CONCEPTS LEARNED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. LIMIT / OFFSET in SQL
+   The standard technique for "sliding window" data retrieval.
+   OFFSET = (page - 1) × limit
+   Always run a COUNT query first to know total_pages.
+
+2. Two-Query Pagination Pattern
+   Query 1: SELECT COUNT(*) — tells the frontend how many pages exist.
+   Query 2: SELECT ... LIMIT X OFFSET Y — returns only the current page.
+   This pattern is the industry standard for server-side pagination.
+
+3. Custom React Hooks (useDebounce)
+   Custom hooks let you extract reusable stateful logic out of
+   components. useDebounce can be imported in any component that
+   needs debounced input — search bars, range sliders, resize handlers.
+
+4. The Cleanup Function in useEffect
+   return () => ... is the cleanup function. React runs it before
+   every re-run of the effect AND when the component unmounts.
+   For timers: always return () => clearTimeout(timer).
+   For fetch: always return an abort controller.
+
+5. Controlled / Stateless Components
+   A good UI component does NOT own state that logically belongs to
+   the parent. Pagination.jsx is a perfect example — it renders
+   based on props and fires callbacks. The parent owns all state.
+
+6. Debounce vs Throttle (Bonus concept)
+   Debounce: wait until activity STOPS, then fire once.
+             → Best for search inputs (we want the final value).
+   Throttle: fire at most once per time period, regardless of activity.
+             → Best for scroll events, resize events (continuous input).
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  END OF WRITE-UP
+  Task 15 — Pagination + Debounced Search — ShopSphere E-Commerce Platform
+================================================================================
