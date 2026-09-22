@@ -120,7 +120,47 @@ python app.py
 # Runs on http://127.0.0.1:5001
 ```
 
-### Step 2 — Frontend
+### Step 2 — Database Setup (MySQL)
+
+**1. Create the database**
+```sql
+CREATE DATABASE auth_system;
+```
+
+**2. Import the SQL file** (contains table structure + seed data)
+```bash
+mysql -u root -p auth_system < auth_system_users.sql
+```
+Or open **MySQL Workbench** → select `auth_system` database → run the SQL file.
+
+**3. Users table structure**
+```sql
+CREATE TABLE users (
+  id         INT          NOT NULL AUTO_INCREMENT,
+  username   VARCHAR(50)  NOT NULL UNIQUE,
+  email      VARCHAR(100) NOT NULL UNIQUE,
+  password   VARCHAR(255) NOT NULL,          -- bcrypt hashed
+  role       ENUM('admin','user') DEFAULT 'user',
+  created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+);
+```
+
+**4. Update DB credentials in `app.py`** if your MySQL setup is different:
+```python
+db = mysql.connector.connect(
+    host     = "127.0.0.1",
+    port     = 3306,
+    user     = "root",
+    password = "your_mysql_password",   # ← change this
+    database = "auth_system"
+)
+```
+
+> **Note:** Passwords stored in the database are **bcrypt hashed** — never plain text.  
+> The `auth_system_users.sql` file includes 6 pre-seeded users for testing.
+
+
 
 ```bash
 cd frontend
