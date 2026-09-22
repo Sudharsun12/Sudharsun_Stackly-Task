@@ -1,0 +1,449 @@
+JWT Authentication System — Task 16 Write-Up
+Done By: Sudharsun A
+Date: 22 September 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  SECTION 1 — PROJECT IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════════════
+
+This project is an upgrade of Task 4 (Flask Session Authentication) to use
+JWT (JSON Web Token) based authentication. The system is built using Python,
+Flask, MySQL on the backend, and React (Vite) on the frontend.
+
+────────────────────────────────────────────────────────
+  Backend Implementation (Flask — app.py)
+────────────────────────────────────────────────────────
+
+1. DEPENDENCY UPGRADE
+   Removed Flask-Session from the project completely.
+   Installed flask-jwt-extended (version 4.7.4) which handles all JWT
+   operations — token creation, token decoding, and route protection.
+
+2. JWT CONFIGURATION
+   Configured three key settings inside app.py:
+     - JWT_SECRET_KEY : A secret key used to sign and verify every token.
+                        If this key is wrong or missing, the token fails.
+     - JWT_ACCESS_TOKEN_EXPIRES  : Set to 15 minutes (timedelta(minutes=15))
+     - JWT_REFRESH_TOKEN_EXPIRES : Set to 7 days   (timedelta(days=7))
+   Initialized JWTManager(app) to bind flask-jwt-extended to the Flask app.
+
+3. CORS CONFIGURATION
+   Updated Flask-CORS to explicitly allow:
+     - Origins: http://localhost:5173, http://localhost:5174 (Vite dev ports)
+     - Headers: Content-Type and Authorization
+     - Methods: GET, POST, PUT, DELETE, OPTIONS
+   This is critical because JWT uses the Authorization header — if CORS does
+   not whitelist it, the browser silently blocks all requests.
+
+4. REGISTER ROUTE (POST /api/register)
+   No change to logic — user registers with username, email, password.
+   Password is hashed with Flask-Bcrypt before storing in MySQL.
+   No session or token is created at registration. User must log in separately.
+
+5. LOGIN ROUTE (POST /api/login)
+   This route was completely upgraded:
+   - Verifies username and password using bcrypt.check_password_hash()
+   - On success, creates two JWT tokens:
+       access_token  = create_access_token(identity=str(user["id"]),
+                           additional_claims={"role": ..., "username": ...})
+       refresh_token = create_refresh_token(identity=str(user["id"]))
+   - Returns both tokens and user info as JSON to the React frontend.
+   - No session[] is set anywhere.
+
+6. PROTECTED ROUTES (GET /api/dashboard, GET /api/profile)
+   Replaced the old "if user_id not in session" check with the
+   @jwt_required() decorator from flask-jwt-extended.
+   - get_jwt_identity() returns the user ID stored in the token's sub claim.
+   - get_jwt() returns the full claims dictionary — role, username etc.
+   The server verifies the token signature on every request. No database
+   lookup is needed to validate identity — the signature does that.
+
+7. ME ROUTE (GET /api/me)
+   A new route added specifically for the React frontend.
+   When the user refreshes the browser page, React calls /api/me with
+   the stored access token. If valid, it returns the user's identity and
+   role, allowing AuthContext to restore the logged-in state silently
+   without redirecting to the login page.
+
+8. REFRESH ROUTE (POST /api/refresh)
+   Protected with @jwt_required(refresh=True) — only accepts refresh tokens.
+   Fetches the latest user data from MySQL and creates a brand new
+   access token with updated claims. Returns it as JSON.
+   The React interceptor calls this automatically when any request gets a 401.
+
+9. LOGOUT ROUTE (POST /api/logout)
+   JWT is stateless — the server has no session to clear.
+   This route simply returns a success message. The actual logout happens
+   on the frontend — React removes the tokens from localStorage.
+
+────────────────────────────────────────────────────────
+  Frontend Implementation (React + Vite)
+────────────────────────────────────────────────────────
+
+1. PROJECT SETUP
+   Created a new React app using Vite inside auth_system/frontend/.
+   Installed two additional packages:
+     - axios         : For making HTTP requests with interceptor support.
+     - react-router-dom : For client-side routing between pages.
+
+2. API.JS — AXIOS INSTANCE WITH INTERCEPTORS
+   Created src/api.js as the central API communication layer.
+
+   Request Interceptor:
+     Runs before every outgoing request. Reads the access token from
+     localStorage and attaches it as the Authorization header:
+       config.headers.Authorization = `Bearer ${token}`
+     This means every API call in the entire app gets the token
+     automatically — no need to write it manually in each component.
+
+   Response Interceptor:
+     Runs whenever any response comes back. If the response status is 401
+     (Unauthorized) and the request has not already been retried:
+       - Reads the refresh token from localStorage
+       - Sends POST /api/refresh with the refresh token as Bearer header
+       - Stores the new access token in localStorage
+       - Retries the original failed request with the new token
+     If the refresh also fails (token expired after 7 days), it clears
+     localStorage completely and redirects the user to /login.
+
+3. AUTHCONTEXT.JSX
+   A React Context that manages the global authentication state.
+   Provides: user (object), login(), logout(), loading (boolean).
+
+   On page load (useEffect):
+     Checks if an access token exists in localStorage.
+     If yes, calls GET /api/me to restore the user object.
+     This keeps the user logged in across page refreshes.
+
+   login(userData, accessToken, refreshToken):
+     Stores both tokens and user info in localStorage.
+     Sets the user state — all protected pages immediately see the user.
+
+   logout():
+     Calls POST /api/logout to notify the server.
+     Removes all tokens from localStorage.
+     Sets user to null — triggers redirect to login via ProtectedRoute.
+
+4. PROTECTEDROUTE.JSX
+   A wrapper component for protected pages.
+   If loading is true  → shows a loading screen (waiting for /api/me).
+   If user is null     → redirects to /login using React Router.
+   If user exists      → renders the protected page (children).
+
+5. PAGES
+   Login.jsx    : Submits username+password → stores tokens → navigates to /dashboard
+   Register.jsx : Submits form → on success redirects to /login (no auto-login)
+   Dashboard.jsx: Shows decoded JWT payload (user ID, role, issued at, expiry time)
+                  and explains how JWT works step by step.
+   Profile.jsx  : Fetches full user data from GET /api/profile using Bearer token.
+
+6. FOOTER
+   A reusable Footer component added to all pages with:
+     - An inspirational quote
+     - Developer credit: Developed by Sudharsun A
+     - Dynamic copyright year
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  SECTION 2 — CHALLENGES FACED AND HOW I OVERCAME THEM
+═══════════════════════════════════════════════════════════════════════════════
+
+Challenge 1 — CORS Blocking All Requests
+─────────────────────────────────────────
+Problem:
+  After setting up the Flask backend with JWT, every request from React was
+  blocked. The browser showed CORS errors and registration was failing with
+  no clear error message. The Network tab showed OPTIONS requests going through
+  but the actual POST requests were blocked.
+
+Root Cause:
+  The Flask-CORS configuration only specified the allowed origin but did not
+  explicitly whitelist the Authorization and Content-Type headers. When JWT
+  is used, every request carries an Authorization: Bearer header. If CORS
+  does not allow that header, the browser rejects the request before it even
+  reaches the Flask route.
+
+How I Fixed It:
+  Updated the CORS configuration to explicitly allow:
+    allow_headers=["Content-Type", "Authorization"]
+  This told the browser that the backend accepts these headers in cross-origin
+  requests, resolving all the blocked requests immediately.
+
+────────────────────────────────────────────────────────
+
+Challenge 2 — Vite Running on Port 5174 Instead of 5173
+─────────────────────────────────────────────────────────
+Problem:
+  Even after fixing the header issue, registration was still failing.
+  The CORS config listed http://localhost:5173 as the allowed origin, but
+  the React app was actually running on http://localhost:5174. Vite
+  automatically moves to the next available port when 5173 is already in use.
+
+Root Cause:
+  A previous Vite session from our earlier testing was already occupying
+  port 5173, so the new session started on 5174. Since 5174 was not in
+  the CORS allowed origins list, Flask rejected every request from it.
+
+How I Fixed It:
+  Added both ports (5173 and 5174) to the CORS origins list:
+    origins=["http://localhost:5173", "http://localhost:5174", ...]
+  Registration, login, and all protected routes worked correctly after this.
+
+────────────────────────────────────────────────────────
+
+Challenge 3 — MySQL Cursor Losing Connection After Idle Time
+─────────────────────────────────────────────────────────────
+Problem:
+  When the Flask server was running for a long time without requests, the
+  MySQL connection would silently drop. The next request would then fail
+  with a "MySQL Connection not available" error.
+
+How I Fixed It:
+  Added an ensure_connection() helper function that calls db.ping() with
+  reconnect=True before every database query. If the connection is lost,
+  it automatically reconnects. This function is called at the start of
+  every route that touches the database.
+
+────────────────────────────────────────────────────────
+
+Challenge 4 — JWT Key Length Warning
+──────────────────────────────────────
+Problem:
+  When running the server, a warning appeared:
+    "InsecureKeyLengthWarning: The HMAC key is 27 bytes long,
+     which is below the minimum recommended length of 32 bytes."
+
+  This was because the JWT_SECRET_KEY was too short.
+
+How I Fixed It:
+  Updated the secret key to a longer string (32+ characters) to meet
+  the minimum recommended length for HMAC-SHA256 signing.
+
+────────────────────────────────────────────────────────
+
+Challenge 5 — Page Refresh Redirecting to Login
+────────────────────────────────────────────────
+Problem:
+  After logging in and refreshing the browser, the user was immediately
+  kicked back to the login page even though the tokens were in localStorage.
+
+Root Cause:
+  The AuthContext initially set user to null and did not check localStorage
+  before rendering ProtectedRoute. So on page load, user was null for a
+  brief moment and ProtectedRoute redirected to login before the /api/me
+  call could complete.
+
+How I Fixed It:
+  Added a loading state (useState(true)) to AuthContext. While the /api/me
+  call is in progress, loading stays true. ProtectedRoute shows a loading
+  screen instead of redirecting. Only after the call completes (success or
+  failure) does loading become false and the redirect decision is made.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  SECTION 3 — WRITE-UP QUESTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+  Q1. What is the difference between an access token and a refresh token?
+      Why are they different expiry lengths?
+────────────────────────────────────────────────────────
+
+An access token is a short-lived JWT sent with every API request to prove that
+the user is authenticated. It contains the user's ID and role inside its
+payload and has an expiry of 15 minutes. The server reads this token on every
+protected route, verifies its signature, and trusts the data inside — without
+looking anything up in a database.
+
+A refresh token is a long-lived token (7 days in our app) stored separately.
+It is never sent to regular API routes. Its only purpose is to generate a new
+access token when the old one expires. The client sends it to POST /api/refresh
+and gets back a fresh access token.
+
+Why different expiry lengths:
+  The access token is kept short-lived (15 minutes) deliberately. If someone
+  steals it — for example by reading network traffic — they can only use it
+  for 15 minutes before it becomes useless. This limits the window of damage.
+
+  The refresh token is long-lived (7 days) so the user does not have to type
+  their password every 15 minutes. But it is only used at a single endpoint
+  (/api/refresh), which reduces its exposure compared to the access token
+  which is sent on every single API call.
+
+  Together, they give a balance between security and user experience —
+  short exposure window for the high-frequency access token, long convenience
+  window for the low-frequency refresh token.
+
+
+────────────────────────────────────────────────────────
+  Q2. What is an Axios interceptor and why is it better than manually adding
+      the token to every API call?
+────────────────────────────────────────────────────────
+
+An Axios interceptor is a function that Axios runs automatically either before
+every outgoing request (request interceptor) or after every incoming response
+(response interceptor), before the calling code ever sees it.
+
+In our app, we have two interceptors in src/api.js:
+
+  Request Interceptor:
+    Every time any component calls api.get(), api.post(), etc., this function
+    runs first. It reads the access token from localStorage and attaches it:
+      config.headers.Authorization = `Bearer ${token}`
+    The original API call then goes out with the header already attached.
+
+  Response Interceptor:
+    Every time a response comes back, this function checks the status.
+    If it is 401 (token expired), it:
+      - Uses the refresh token to get a new access token from /api/refresh
+      - Updates localStorage with the new token
+      - Retries the original request automatically
+    All of this happens silently — the user and the component code never know.
+
+Why this is better than manual token attachment:
+  Without interceptors, every single API call would need to be written like:
+    const token = localStorage.getItem("access_token")
+    const res = await axios.get("/api/dashboard", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+  This must be repeated in every component for every API call. If the token
+  key name changes, or if we want to add retry logic, we would have to update
+  every single file. With the interceptor, we write the logic once in api.js
+  and every call in the entire application benefits from it automatically.
+  This follows the DRY principle (Don't Repeat Yourself) and makes the code
+  significantly easier to maintain.
+
+
+────────────────────────────────────────────────────────
+  Q3. What happens in your app when the access token expires mid-session?
+      Walk through the exact sequence of events in your interceptor code.
+────────────────────────────────────────────────────────
+
+Step 1: The user is logged in. Their access token (valid for 15 minutes) is
+        stored in localStorage. They continue using the app normally.
+
+Step 2: After 15 minutes, the access token expires. The user doesn't notice
+        anything — they are still on the dashboard, clicking around.
+
+Step 3: The user performs an action (e.g., navigates to the Profile page).
+        React calls api.get("/api/profile").
+
+Step 4: The REQUEST interceptor runs. It reads the (now expired) access token
+        from localStorage and attaches it:
+          config.headers.Authorization = `Bearer eyJ...expired...`
+
+Step 5: Flask receives the request. The @jwt_required() decorator on
+        /api/profile calls flask-jwt-extended's token validator. It decodes
+        the token and finds that the "exp" (expiry) claim is in the past.
+        Flask returns 401 Unauthorized with {"msg": "Token has expired"}.
+
+Step 6: The RESPONSE interceptor catches the 401 response.
+        It checks two conditions:
+          error.response?.status === 401   → true
+          !originalRequest._retry          → true (first attempt, not a retry)
+        Both are true, so the retry logic begins.
+
+Step 7: The interceptor sets originalRequest._retry = true to prevent an
+        infinite loop if the refresh also returns 401.
+
+Step 8: The interceptor reads the refresh token from localStorage and sends:
+          POST /api/refresh
+          Authorization: Bearer eyJ...refreshtoken...
+        This is sent using plain axios (not the api instance) to avoid
+        triggering the interceptor again on this internal call.
+
+Step 9: Flask validates the refresh token on /api/refresh. The refresh token
+        is still valid (7 days have not passed). Flask creates a new access
+        token with fresh claims and returns:
+          { "access_token": "eyJ...newtoken..." }
+
+Step 10: The interceptor stores the new access token in localStorage.
+         It updates the Authorization header on the original failed request:
+           originalRequest.headers.Authorization = `Bearer eyJ...newtoken...`
+
+Step 11: The interceptor retries the original request using return api(original).
+         This time, the new valid token is sent. Flask accepts it and returns
+         the profile data normally.
+
+Step 12: The Profile component receives the data and renders it. The user
+         sees their profile — they never knew anything happened. The entire
+         sequence (steps 5 to 11) happened in under one second, invisibly.
+
+Failure path:
+  If Step 9 fails (refresh token also expired after 7 days), the catch block
+  runs. It clears localStorage completely:
+    localStorage.removeItem("access_token")
+    localStorage.removeItem("refresh_token")
+    localStorage.removeItem("user")
+  Then redirects: window.location.href = "/login"
+  The user is taken to the login page and must log in again.
+
+
+────────────────────────────────────────────────────────
+  Q4. What is the difference between JWT authentication and Flask session
+      authentication? Why is JWT better for a React single-page application?
+────────────────────────────────────────────────────────
+
+Flask Session Authentication (Task 4):
+  When a user logs in, Flask creates a session object and stores user data
+  (user_id, username, role) on the server — either in memory, in a file
+  (Flask-Session with filesystem), or in a database. The client receives a
+  session ID cookie. On every subsequent request, the browser sends this
+  cookie automatically, and Flask looks up the session data on the server
+  using that ID. This is called stateful authentication — the server must
+  maintain and remember every active session.
+
+JWT Authentication (Task 16):
+  When a user logs in, the server creates a signed token containing the user's
+  data directly in the payload (user ID, role, username). This token is sent
+  to the client. The client stores it in localStorage and sends it as an
+  Authorization: Bearer header on every request. The server verifies the
+  signature — if it is valid, it trusts the data inside the token. The server
+  stores nothing. This is called stateless authentication.
+
+Key Differences:
+  ┌──────────────────────┬─────────────────────┬─────────────────────┐
+  │ Aspect               │ Flask Sessions       │ JWT                 │
+  ├──────────────────────┼─────────────────────┼─────────────────────┤
+  │ State stored on      │ Server               │ Client              │
+  │ Sent as              │ Cookie               │ Authorization header│
+  │ Server memory needed │ Yes (per user)       │ No                  │
+  │ Works cross-origin   │ Requires CORS + creds│ Works natively      │
+  │ Mobile/API clients   │ Difficult            │ Works identically   │
+  │ Horizontal scaling   │ Requires shared store│ Works out of the box│
+  └──────────────────────┴─────────────────────┴─────────────────────┘
+
+Why JWT is better for a React SPA:
+
+  1. No cookie issues with CORS:
+     Flask sessions rely on cookies. When the React app (localhost:5174) talks
+     to the Flask backend (localhost:5001), cookies require credentials:include
+     in every fetch call and supports_credentials=True in CORS — which adds
+     complexity and restrictions. JWT uses the Authorization header which
+     works cleanly across any origin without special cookie settings.
+
+  2. Stateless and scalable:
+     If we run two Flask servers behind a load balancer, sessions stored on
+     Server A are not visible to Server B. The user might get logged out
+     randomly. With JWT, every server can validate the token independently
+     using only the shared secret key — no shared session store needed.
+
+  3. Works for all client types:
+     Sessions are cookie-based and designed for browsers. A mobile app or
+     third-party API consumer cannot easily use cookies. JWT is just a string
+     sent in a header — any client (browser, mobile, Postman, curl) can use
+     it identically. This makes JWT the standard for modern REST APIs.
+
+  4. Decoupled frontend and backend:
+     In a React SPA, the frontend and backend are completely separate apps.
+     JWT makes this separation clean — React manages its own token storage
+     and the backend is a pure stateless API. Flask does not need to know
+     about the browser at all.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  End of Write-Up — Task 16 JWT Authentication
+  Developed by Sudharsun A
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
