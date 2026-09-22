@@ -1,0 +1,60 @@
+/* ── Footer ─────────────────────────────────────────────────────── */
+.site-footer {
+  width: 100%;
+  padding: 1.5rem 2rem;
+  background: #0c0c18;
+  border-top: 1px solid #3d3d60;
+  text-align: center;
+  margin-top: auto;
+}
+
+.footer-quote {
+  font-size: 0.95rem;
+  font-style: italic;
+  color: #c4b5fd;          /* bright purple — clearly visible */
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.01em;
+}
+
+.quote-mark {
+  font-size: 1.3rem;
+  color: #a78bfa;
+  font-style: normal;
+  font-weight: 700;
+  margin: 0 0.3rem;
+}
+
+.footer-divider {
+  width: 80px;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, #a78bfa, transparent);
+  margin: 0 auto 0.75rem auto;
+}
+
+.footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  font-size: 0.88rem;       /* slightly larger */
+  color: #94a3b8;           /* light grey — clearly visible */
+}
+
+.footer-dev {
+  color: #94a3b8;
+}
+
+.footer-dev strong {
+  color: #e2e8f0;           /* bright white for the name */
+  font-weight: 600;
+}
+
+.footer-dot {
+  color: #a78bfa;           /* purple dot separator */
+  font-weight: 700;
+}
+
+.footer-copy {
+  color: #94a3b8;           /* light grey — clearly visible */
+}
