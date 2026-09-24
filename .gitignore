@@ -5,3 +5,11 @@ Thumbs.db
 # Editor directories
 .vscode/
 .idea/
+
+# Dependencies & Build artifacts
+node_modules/
+dist/
+dist-ssr/
+__pycache__/
+*.pyc
+

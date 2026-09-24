@@ -1,0 +1,315 @@
+================================================================
+  Task 17 – Dark Mode & Theme System (ShopSphere E-Commerce)
+  Frontend: React + CSS Custom Properties + Context API
+  Submitted by: Sudharsun A
+================================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. IMPLEMENTATION OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+In this task, a full-featured, scalable design-token and theming system
+was integrated into the ShopSphere E-Commerce platform. The implementation
+replaces ad-hoc, hardcoded color values with native CSS custom properties
+(CSS variables), centralizes theme state management using React Context API,
+persists user preferences via localStorage, and automatically detects
+the operating system's color scheme preference on initial visit.
+
+Key Architectural Pillars:
+
+1. CSS Variable Architecture (Design Tokens in src/index.css):
+   - Defined design tokens under :root and attribute selectors:
+       * Light theme: :root, :root[data-theme='light']
+       * Dark theme:  :root[data-theme='dark']
+       * Sepia theme: :root[data-theme='sepia'] (Bonus 3rd theme)
+   - Abstracted design tokens for background colors, card surfaces,
+     text hierarchies (primary, secondary, muted), border colors, accent
+     palettes, box shadows, and status badges.
+   - Any switch in the 'data-theme' attribute on the <html> (document root)
+     element instantly cascades the updated token values across all components
+     without needing React component re-renders or inline style recalculations.
+
+2. Centralized Theme State (src/context/ThemeContext.jsx):
+   - Built a dedicated ThemeContext and ThemeProvider to manage theme state
+     globally across the component tree.
+   - Initial state resolution follows a strict hierarchy:
+       1) Checks localStorage for an existing saved choice ('light', 'dark', 'sepia').
+       2) Falls back to window.matchMedia('(prefers-color-scheme: dark)') to respect
+          the user's OS-level preferences.
+       3) Defaults to 'light' if neither is available.
+   - Synchronizes document.documentElement.setAttribute('data-theme', theme)
+     and localStorage.setItem('theme', theme) via a reactive useEffect hook.
+   - Exports a clean, reusable custom hook: useTheme().
+
+3. Root Application Integration (src/main.jsx & src/App.jsx):
+   - Wrapped the entire React application in <ThemeProvider> at the topmost
+     level in main.jsx, enclosing AuthProvider, CartProvider, and App.
+   - Eliminated manual prop-drilling from App.jsx down to Navbar or child routes.
+
+4. User Interface Theme Switcher (src/components/Navbar.jsx):
+   - Added an interactive theme switcher button displaying the upcoming
+     theme label and contextual emoji icon (Light -> Dark -> Sepia).
+   - Consumes useTheme() directly, ensuring decoupled, clean component code.
+   - Displays real-time theme status badge in the Footer component.
+
+5. Global Component Harmonization:
+   - Audited and updated all pages and components to rely purely on CSS variables:
+     * Navbar, Navigation links, and Cart badge
+     * Product cards, Grid layouts, and Image containers
+     * Product Detail view and stock indicator badges
+     * Cart page, Quantity selectors, and Checkout order summary
+     * Orders listing, Status badges (Pending, Confirmed, Shipped, Delivered, Cancelled)
+     * Admin Dashboard, KPI cards, Product management tables, and forms
+     * Authentication cards (Login and Register pages)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. CHALLENGES FACED & SOLUTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Flash of Inconsistent Styles and State Synchronization:
+   - Challenge: When reading the theme state asynchronously or solely in an
+     effect, the user might see a brief "flash" of the default light theme
+     before the saved dark mode kicks in after refresh.
+   - Solution: Used lazy state initialization in useState(getInitialTheme) inside
+     ThemeProvider. This runs synchronously on the very first render, evaluating
+     localStorage and window.matchMedia immediately, avoiding state mismatches
+     and rendering glitches.
+
+2. Multi-Port Development and Backend CORS Conflict:
+   - Challenge: When testing the frontend concurrently, Vite assigned port 5174
+     (since port 5173 was engaged). The Flask backend had previously hardcoded
+     CORS origins to only allow port 5173, triggering browser CORS blocks and
+     login failures on port 5174.
+   - Solution: Updated backend/app.py CORS configuration to whitelist multiple
+     origins including http://localhost:5173, http://localhost:5174,
+     http://localhost:5175, and their 127.0.0.1 equivalents, allowing seamless
+     local multi-client testing.
+
+3. Smooth Theme Transitions vs. Micro-Animations:
+   - Challenge: Applying a blanket wildcard transition (* { transition: all 0.3s; })
+     created unwanted lag on layout shifts, transform hover effects on product
+     cards, and input typing response.
+   - Solution: Specifically targeted color-related properties:
+     transition: background-color 0.3s ease, border-color 0.3s ease,
+                 color 0.3s ease, box-shadow 0.3s ease;
+     Preserved faster transform transitions (0.2s) exclusively for interactive
+     card hover lift effects.
+
+4. Dynamic Semantic Color Tokens across Themed States:
+   - Challenge: Static status badges (e.g. Pending, Shipped, Cancelled) had high
+     contrast in light mode but turned unreadable in dark mode due to inverted
+     luminance.
+   - Solution: Designed scoped semantic variations under [data-theme='dark']
+     and [data-theme='sepia'] in index.css, ensuring that text contrast and
+     badge background opacity remain WCAG compliant regardless of theme.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. TECHNICAL WRITE-UP QUESTIONS & ANSWERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+──────────────────────────────────────────────────────────────
+Question 1:
+What is a CSS custom property and how is it different from a
+hardcoded color value? Give an example from your code.
+──────────────────────────────────────────────────────────────
+Answer:
+A CSS custom property (also commonly known as a CSS variable) is an entity
+defined by an author using the double-hyphen prefix syntax (e.g., --bg-primary)
+that contains a reusable value across a stylesheet. It is accessed using the
+var() functional notation.
+
+Key Differences:
+1. Dynamic Runtime Re-evaluation: Hardcoded values (e.g., #ffffff) are static
+   and cannot react to changes in DOM attributes or parent context without
+   overriding every individual CSS rule. CSS custom properties cascade and
+   recompute at runtime when the root attribute (data-theme) changes.
+2. Single Source of Truth: With hardcoded colors, changing a primary background
+   requires modifying dozens of rules across multiple files. With CSS variables,
+   modifying one token updates the entire application simultaneously.
+3. Specificity & Clean Code: Eliminates high-specificity CSS overrides or
+   repeating selector trees for dark themes.
+
+Example from ShopSphere Code:
+
+In src/index.css:
+   /* Light Theme Definition */
+   :root[data-theme='light'] {
+     --bg-primary:   #f0f2f8;
+     --bg-card:      #ffffff;
+     --text-primary: #0f172a;
+     --border:       #e2e8f0;
+   }
+
+   /* Dark Theme Definition */
+   :root[data-theme='dark'] {
+     --bg-primary:   #0a0e1a;
+     --bg-card:      #1a2035;
+     --text-primary: #f1f5f9;
+     --border:       #2d3748;
+   }
+
+   /* Usage in Component Classes */
+   .card {
+     background: var(--bg-card);
+     border: 1px solid var(--border);
+     color: var(--text-primary);
+   }
+
+Instead of writing separate selectors like:
+   .card { background: #ffffff; color: #0f172a; }
+   [data-theme='dark'] .card { background: #1a2035; color: #f1f5f9; }
+The component requires only one declaration, and the browser handles the
+color switch automatically.
+
+
+──────────────────────────────────────────────────────────────
+Question 2:
+Your app detects the user's system theme on first visit. How?
+Write the exact code that does this.
+──────────────────────────────────────────────────────────────
+Answer:
+The application detects the user's OS-level theme preference using the browser's
+native window.matchMedia() API, querying the CSS media feature
+'(prefers-color-scheme: dark)'.
+
+Exact Code from src/context/ThemeContext.jsx:
+
+```javascript
+const getInitialTheme = () => {
+  // 1. Check localStorage first — respects user's previous explicit choice
+  const saved = localStorage.getItem('theme')
+  if (saved === 'light' || saved === 'dark' || saved === 'sepia') return saved
+
+  // 2. Check the OS/system-level preference
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  return prefersDark ? 'dark' : 'light'
+}
+```
+
+How it works:
+- On first visit, localStorage.getItem('theme') returns null.
+- The function moves to step 2 and queries window.matchMedia('(prefers-color-scheme: dark)').
+- If the operating system or browser is in Dark Mode, .matches evaluates to true
+  and returns 'dark'.
+- If the user prefers Light Mode, it evaluates to false and returns 'light'.
+
+
+──────────────────────────────────────────────────────────────
+Question 3:
+Why is using data-theme on the root element better than passing
+a theme prop to every single component?
+──────────────────────────────────────────────────────────────
+Answer:
+Setting a data-theme attribute on the root element (document.documentElement,
+or <html>) is vastly superior to prop drilling for four fundamental reasons:
+
+1. Zero Prop Drilling & Maintainable Hierarchy:
+   Passing theme props requires every intermediate component—even layout containers,
+   grids, and wrapper wrappers that do not care about colors—to accept and pass down
+   the theme prop. This pollutes component APIs and bloats code.
+
+2. Performance (Zero Unnecessary React Re-renders):
+   If theme is passed as a React prop to every component, changing the theme forces
+   the entire React virtual DOM tree to re-render from the root downwards.
+   With the data-theme attribute on <html>, the CSS engine of the browser handles
+   the color recalculation natively on the GPU/styling thread in a single repaint,
+   bypassing React re-renders for purely aesthetic changes.
+
+3. Native CSS Cascading:
+   CSS variables naturally cascade down the DOM tree. By setting data-theme="dark"
+   on the root element, all children instantly inherit the corresponding variable
+   definitions without a single line of JavaScript in individual components.
+
+4. Third-Party and Modal Portals:
+   Modals, popovers, and tooltips rendered outside the main root container (e.g. via
+   React Portals) still inherit CSS variables attached to :root or <html>. If theme
+   props were used, portal containers would require manual wrapping or context bridges.
+
+
+──────────────────────────────────────────────────────────────
+Question 4:
+What is localStorage.getItem('theme') doing in getInitialTheme
+and why does it take priority over the system preference check?
+──────────────────────────────────────────────────────────────
+Answer:
+What it is doing:
+localStorage.getItem('theme') reads the synchronous browser storage key 'theme'
+associated with the domain. Whenever the user clicks the theme toggle button,
+ThemeContext writes their active selection ('light', 'dark', or 'sepia') to
+localStorage. During initial mount, getInitialTheme reads this key to determine if
+a previous preference was stored.
+
+Why it takes priority over system preference:
+It honors the fundamental UX principle of "Explicit User Intent over System Defaults":
+1. The user's operating system might globally be set to Dark Mode, but the user
+   might specifically prefer reading ShopSphere in Light Mode (or Sepia Mode).
+2. Once a user takes an active physical action inside the app by clicking the
+   theme toggle, their explicit choice must override the generic device setting.
+3. System preference is an intelligent fallback intended for when the app has no
+   prior knowledge of the user. Once an explicit user preference is recorded,
+   disregarding it on refresh would frustrate the user and break persistence.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4. BONUS FEATURES IMPLEMENTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Smooth Transition Between Themes:
+   Added smooth color and background interpolation across all surfaces:
+   transition: background-color 0.3s ease, border-color 0.3s ease,
+               color 0.3s ease, box-shadow 0.3s ease;
+   The entire UI smoothly morphs between palettes rather than abruptly flashing.
+
+2. Third Theme (Warm Sepia Mode):
+   Added a dedicated third theme for enhanced readability and eye comfort:
+   - Root selector: :root[data-theme='sepia']
+   - Warm parchment background (#f4ede4), rich coffee typography (#2c1810),
+     earthy terracotta accents (#8b4513), and soft cream card surfaces (#fdf6ed).
+   - The toggle button cycles seamlessly: Light ☀️ -> Dark 🌙 -> Sepia 📜 -> Light ☀️.
+
+3. Real-Time OS Preference Listener:
+   Integrated a dynamic matchMedia change event listener inside ThemeContext:
+   ```javascript
+   useEffect(() => {
+     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+     const handleChange = (e) => {
+       const saved = localStorage.getItem('theme')
+       if (!saved) {
+         setTheme(e.matches ? 'dark' : 'light')
+       }
+     }
+     mediaQuery.addEventListener('change', handleChange)
+     return () => mediaQuery.removeEventListener('change', handleChange)
+   }, [])
+   ```
+   If the user has not explicitly locked a preference in localStorage and toggles
+   their OS theme from Settings, the application follows in real time!
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5. VERIFICATION & TESTING CHECKLIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[x] Production Build Test: Ran 'npm run build' — Vite built client environment
+    with 98 modules transformed in 701ms with 0 errors.
+[x] Root Element Verification: Inspecting <html> confirms data-theme toggles
+    smoothly between 'light', 'dark', and 'sepia'.
+[x] LocalStorage Persistence: Toggling to 'dark' mode and pressing browser
+    Refresh (F5) retains dark mode without any flash of light mode.
+[x] Navbar: Correct background, border, brand gradient, and dynamic toggle button.
+[x] Home & Product Cards: Card surfaces, prices, search/filter inputs, and
+    category pills adjust colors according to theme tokens.
+[x] Product Detail Page: Image container, description text, and stock badges
+    render with optimal contrast.
+[x] Cart & Checkout: Table borders, subtotals, grand totals, and delivery form
+    textareas look crisp in all themes.
+[x] Order History: Status badges (Pending, Confirmed, Shipped, Delivered, Cancelled)
+    remain readable with theme-adjusted background opacities.
+[x] Admin Management: KPI summary cards, product data tables, and modal/forms
+    reflect the active color palette.
+[x] Authentication Pages: Login and Register cards are centered and styled
+    with appropriate card backgrounds and shadows.
+================================================================
