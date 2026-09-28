@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import api from '../api'
+import api, { getImageUrl } from '../api'
 import { useCart } from '../context/CartContext'
 
 export default function ProductDetail() {
@@ -53,7 +53,7 @@ export default function ProductDetail() {
           {/* Image */}
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <img
-              src={product.image_url || 'https://picsum.photos/600/400'}
+              src={getImageUrl(product.image_url)}
               alt={product.name}
               style={{ width: '100%', height: 380, objectFit: 'cover' }}
             />

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import { getImageUrl } from '../api'
 
 function getStockInfo(stock) {
   if (stock === 0)  return { label: 'Out of Stock', cls: 'out-stock' }
@@ -22,7 +23,7 @@ export default function ProductCard({ product }) {
       <div className="product-card">
         <img
           className="product-card-img"
-          src={product.image_url || 'https://picsum.photos/400/300'}
+          src={getImageUrl(product.image_url)}
           alt={product.name}
           loading="lazy"
         />

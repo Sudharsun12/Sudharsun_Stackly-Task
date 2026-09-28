@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import { getImageUrl } from '../api'
 
 export default function Cart() {
   const { cartItems, removeFromCart, updateQty, cartTotal } = useCart()
@@ -36,7 +37,7 @@ export default function Cart() {
                 alignItems: 'center'
               }}>
                 <img
-                  src={item.image_url || 'https://picsum.photos/80/80'}
+                  src={getImageUrl(item.image_url)}
                   alt={item.name}
                   style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 10, flexShrink: 0 }}
                 />

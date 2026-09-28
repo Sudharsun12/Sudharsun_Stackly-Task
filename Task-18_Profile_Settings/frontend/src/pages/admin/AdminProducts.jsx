@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import api from '../../api'
+import api, { getImageUrl } from '../../api'
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([])
@@ -75,7 +75,7 @@ export default function AdminProducts() {
                       <td style={{ color: 'var(--text-muted)' }}>{p.id}</td>
                       <td>
                         <img
-                          src={p.image_url || 'https://picsum.photos/40/40'}
+                          src={getImageUrl(p.image_url)}
                           alt={p.name}
                           style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8 }}
                         />
