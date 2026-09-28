@@ -97,4 +97,4 @@ See [`Profile_Settings_Writeup.txt`](./Profile_Settings_Writeup.txt) for full im
 
 ---
 
-*Developed by **Sudharsun A** · Task 18 · Stackly Internship 2026*
+*Developed by **Sudharsun A** · Task 18 · Software Engineer @ Stackly 2026*

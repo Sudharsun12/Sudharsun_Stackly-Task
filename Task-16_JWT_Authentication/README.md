@@ -211,4 +211,4 @@ See [`JWT_Authentication_Writeup.txt`](./JWT_Authentication_Writeup.txt) for:
 
 ---
 
-*Developed by **Sudharsun A** · Task 16 · Stackly Internship 2026*
+*Developed by **Sudharsun A** · Task 16 · Software Engineer @ Stackly 2026*
