@@ -13,6 +13,7 @@ import Checkout      from './pages/Checkout'
 import Orders        from './pages/Orders'
 import Login         from './pages/Login'
 import Register      from './pages/Register'
+import ProfilePage   from './pages/ProfilePage'
 
 import AdminProducts from './pages/admin/AdminProducts'
 import ProductForm   from './pages/admin/ProductForm'
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/cart"        element={<ProtectedRoute><Cart /></ProtectedRoute>} />
           <Route path="/checkout"    element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
           <Route path="/orders"      element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+          <Route path="/profile"     element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
           {/* Admin — role-guarded */}
           <Route path="/admin/products"          element={<AdminRoute><AdminProducts /></AdminRoute>} />

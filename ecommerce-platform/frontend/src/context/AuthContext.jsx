@@ -32,10 +32,17 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  // ── updateUser — called by ProfilePage after name/avatar change ──────────────
+  // Merges partial updates into the current user state so Navbar reflects
+  // changes immediately without a page refresh (React Context re-render)
+  function updateUser(partialData) {
+    setUser(prev => ({ ...prev, ...partialData }))
+  }
+
   const isAdmin = user?.role === 'admin'
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, login, register, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin, login, register, logout, setUser, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

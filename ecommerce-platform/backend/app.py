@@ -1,10 +1,17 @@
-from flask import Flask, request, session, jsonify
+from flask import Flask, request, session, jsonify, send_from_directory
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 import mysql.connector
+import os
+import uuid
 
 app = Flask(__name__)
 app.secret_key = 'shopsphere_secret_key_2026'
+
+# ─── Upload folder setup ───────────────────────────────────────────────────────
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 CORS(app, supports_credentials=True, origins=[
     'http://localhost:5173', 'http://127.0.0.1:5173',
@@ -22,6 +29,14 @@ def get_db():
         password='Srisudhan@1223',
         database='ecommerce'
     )
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# ─── Serve uploaded files ──────────────────────────────────────────────────────
+@app.route('/static/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 # ─── AUTH ──────────────────────────────────────────────────────────────────────
 
@@ -76,8 +91,14 @@ def login():
     session['user_id'] = user['id']
     session['role']    = user['role']
     session['name']    = user['name']
-    return jsonify({'user': {'id': user['id'], 'name': user['name'],
-                             'email': user['email'], 'role': user['role']}})
+    return jsonify({'user': {
+        'id':         user['id'],
+        'name':       user['name'],
+        'email':      user['email'],
+        'role':       user['role'],
+        'avatar_url': user.get('avatar_url'),
+        'created_at': str(user.get('created_at', ''))
+    }})
 
 
 @app.route('/api/logout')
@@ -86,17 +107,134 @@ def logout():
     return jsonify({'message': 'Logged out'})
 
 
+# ─── GET /api/me — return full user profile ───────────────────────────────────
 @app.route('/api/me')
 def me():
     if 'user_id' not in session:
         return jsonify({'user': None})
     db = get_db()
     cursor = db.cursor(dictionary=True)
-    cursor.execute('SELECT id, name, email, role FROM users WHERE id = %s', (session['user_id'],))
+    cursor.execute(
+        'SELECT id, name, email, role, avatar_url, created_at FROM users WHERE id = %s',
+        (session['user_id'],)
+    )
     user = cursor.fetchone()
     cursor.close()
     db.close()
+    if user and user.get('created_at'):
+        user['created_at'] = str(user['created_at'])
     return jsonify({'user': user})
+
+
+# ─── PUT /api/me — update name & email ────────────────────────────────────────
+@app.route('/api/me', methods=['PUT'])
+def update_profile():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Login required'}), 401
+
+    data  = request.get_json()
+    name  = data.get('name', '').strip()
+    email = data.get('email', '').strip()
+
+    if not name or not email:
+        return jsonify({'error': 'Name and email are required'}), 400
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            'UPDATE users SET name=%s, email=%s WHERE id=%s',
+            (name, email, session['user_id'])
+        )
+        db.commit()
+        # Update session name so Navbar reflects immediately on server side
+        session['name'] = name
+        return jsonify({'message': 'Profile updated', 'name': name, 'email': email}), 200
+    except mysql.connector.IntegrityError:
+        return jsonify({'error': 'Email already in use by another account'}), 409
+    finally:
+        cursor.close()
+        db.close()
+
+
+# ─── PUT /api/me/password — change password ───────────────────────────────────
+@app.route('/api/me/password', methods=['PUT'])
+def change_password():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Login required'}), 401
+
+    data     = request.get_json()
+    current  = data.get('current_password', '')
+    new_pass = data.get('new_password', '')
+    confirm  = data.get('confirm_password', '')
+
+    if not current or not new_pass or not confirm:
+        return jsonify({'error': 'All password fields are required'}), 400
+
+    if new_pass != confirm:
+        return jsonify({'error': 'New passwords do not match'}), 400
+
+    if len(new_pass) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute('SELECT * FROM users WHERE id=%s', (session['user_id'],))
+    user = cursor.fetchone()
+
+    if not bcrypt.check_password_hash(user['password'], current):
+        cursor.close()
+        db.close()
+        return jsonify({'error': 'Current password is incorrect'}), 401
+
+    hashed = bcrypt.generate_password_hash(new_pass).decode('utf-8')
+    cursor.execute(
+        'UPDATE users SET password=%s WHERE id=%s',
+        (hashed, session['user_id'])
+    )
+    db.commit()
+    cursor.close()
+    db.close()
+    return jsonify({'message': 'Password changed successfully'}), 200
+
+
+# ─── POST /api/upload/avatar — upload profile picture ─────────────────────────
+@app.route('/api/upload/avatar', methods=['POST'])
+def upload_avatar():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Login required'}), 401
+
+    if 'avatar' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+
+    file = request.files['avatar']
+
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'File type not allowed. Use PNG, JPG, GIF or WebP'}), 400
+
+    # Generate unique filename
+    ext      = file.filename.rsplit('.', 1)[1].lower()
+    filename = f"avatar_{session['user_id']}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(filepath)
+
+    avatar_url = f"/static/uploads/{filename}"
+
+    # Save URL to database
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        'UPDATE users SET avatar_url=%s WHERE id=%s',
+        (avatar_url, session['user_id'])
+    )
+    db.commit()
+    cursor.close()
+    db.close()
+
+    return jsonify({'message': 'Avatar uploaded', 'avatar_url': avatar_url}), 200
 
 
 # ─── CATEGORIES ────────────────────────────────────────────────────────────────
@@ -145,7 +283,7 @@ def get_products():
     cursor.execute(query, params)
     products = cursor.fetchall()
     for p in products:
-        p['price'] = float(p['price'])
+        p['price']      = float(p['price'])
         p['created_at'] = str(p['created_at'])
     cursor.close()
     db.close()
@@ -165,7 +303,7 @@ def get_product(pid):
     db.close()
     if not product:
         return jsonify({'error': 'Product not found'}), 404
-    product['price'] = float(product['price'])
+    product['price']      = float(product['price'])
     product['created_at'] = str(product['created_at'])
     return jsonify(product)
 
@@ -239,7 +377,6 @@ def place_order():
     db     = get_db()
     cursor = db.cursor(dictionary=True)
 
-    # ── Validate ALL stock BEFORE touching any data ──────────────────────────
     for item in items:
         cursor.execute('SELECT name, stock FROM products WHERE id = %s', (item['product_id'],))
         product = cursor.fetchone()
@@ -253,7 +390,6 @@ def place_order():
                           f'You requested {item["quantity"]}.')
             }), 400
 
-    # ── Enrich items with current unit_price ─────────────────────────────────
     total    = 0
     enriched = []
     for item in items:
@@ -263,7 +399,6 @@ def place_order():
         total     += unit_price * item['quantity']
         enriched.append({**item, 'unit_price': unit_price})
 
-    # ── Insert order ─────────────────────────────────────────────────────────
     cursor2 = db.cursor()
     cursor2.execute('INSERT INTO orders (user_id, total_amount, address) VALUES (%s, %s, %s)',
                     (session['user_id'], total, address))

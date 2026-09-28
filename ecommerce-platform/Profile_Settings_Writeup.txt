@@ -1,0 +1,422 @@
+User Profile & Settings Page — Task 18 Write-Up
+Done By: Sudharsun A
+Date: 28 September 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  SECTION 1 — PROJECT IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════════════
+
+This task upgrades the Task 12 ShopSphere E-Commerce application by adding a
+complete User Profile & Settings page. Before this task, a logged-in user had
+no way to view or edit their own details. Task 18 adds that — profile picture
+upload, name/email update, and secure password change — all without a page
+refresh thanks to React Context.
+
+────────────────────────────────────────────────────────
+  Database Changes
+────────────────────────────────────────────────────────
+
+Added one new column to the existing users table:
+
+  ALTER TABLE users ADD COLUMN avatar_url VARCHAR(255) DEFAULT NULL;
+
+This stores the relative URL path of the uploaded profile picture
+(e.g. /static/uploads/avatar_2_abc12345.jpg). If the user has not uploaded
+a picture, this column is NULL and the frontend shows an initials placeholder.
+
+The users table already had a created_at column from the original Task 12
+schema, so no additional migration was needed for that.
+
+────────────────────────────────────────────────────────
+  Backend Implementation (Flask — app.py)
+────────────────────────────────────────────────────────
+
+All routes use Flask sessions (session['user_id']) to identify the logged-in
+user — consistent with the existing Task 12 authentication approach.
+
+1. UPLOAD FOLDER SETUP
+   Created a static/uploads/ directory inside the backend folder at startup
+   using os.makedirs(UPLOAD_FOLDER, exist_ok=True). This ensures the folder
+   exists even on a fresh machine. Allowed file extensions are restricted to
+   png, jpg, jpeg, gif, and webp for security.
+
+2. STATIC FILE SERVING
+   Added a dedicated route to serve uploaded images:
+     GET /static/uploads/<filename>
+   This uses Flask's send_from_directory() to safely serve files from the
+   uploads folder. The frontend loads avatar images using:
+     http://localhost:5000/static/uploads/<filename>
+
+3. UPDATED GET /api/me
+   The original /api/me only returned id, name, email, and role.
+   Updated the SELECT query to also fetch avatar_url and created_at.
+   The login route was also updated to return these two fields in its
+   response so AuthContext gets the full user object immediately on login.
+
+4. NEW ROUTE — PUT /api/me (Update Profile)
+   Accepts JSON body: { name, email }
+   Validates that both fields are present.
+   Runs UPDATE users SET name=%s, email=%s WHERE id=%s.
+   Catches mysql.connector.IntegrityError (duplicate email) and returns
+   409 Conflict instead of 500. On success, returns the updated name and
+   email in the JSON response so the frontend can immediately sync the
+   AuthContext state.
+
+5. NEW ROUTE — PUT /api/me/password (Change Password)
+   Accepts JSON body: { current_password, new_password, confirm_password }
+   Validates three conditions in order:
+     a) All three fields must be present
+     b) new_password and confirm_password must match → 400 if not
+     c) new_password must be at least 6 characters → 400 if not
+   Fetches the user from the database and calls
+   bcrypt.check_password_hash() to verify the current password.
+   If current password is wrong → returns 401 Unauthorized (not 400).
+   If correct → hashes the new password and updates the database.
+
+6. NEW ROUTE — POST /api/upload/avatar (Profile Picture Upload)
+   Accepts multipart/form-data with a file field named "avatar".
+   Validates that a file was included and that its extension is allowed.
+   Generates a unique filename using uuid.uuid4().hex[:8] to prevent
+   filename collisions and avoid overwriting other users' avatars:
+     avatar_{user_id}_{random8chars}.{ext}
+   Saves the file to static/uploads/ and stores the URL path in the
+   database. Returns the new avatar_url to the frontend.
+
+────────────────────────────────────────────────────────
+  Frontend Implementation (React)
+────────────────────────────────────────────────────────
+
+1. AUTHCONTEXT.JSX — updateUser() function
+   This is the most important addition for the UX requirement.
+   Added a new function updateUser(partialData) to AuthContext:
+
+     function updateUser(partialData) {
+       setUser(prev => ({ ...prev, ...partialData }))
+     }
+
+   This function accepts a partial object (e.g. { name: "New Name" } or
+   { avatar_url: "/static/uploads/abc.jpg" }) and merges it into the
+   existing user state using the spread operator.
+   Because setUser() triggers a React re-render, every component that reads
+   from AuthContext (including Navbar) immediately reflects the change.
+   No page refresh is needed.
+
+2. NAVBAR.JSX — Avatar & Profile Link
+   Added a UserAvatar helper component inside Navbar.jsx.
+   Logic:
+     - If user.avatar_url exists → render <img> with the full URL
+     - If not → render a circle div showing the user's initials
+       (first letter of each word in the name, max 2 characters)
+   Both are styled as 34×34px circles with the app's accent color border.
+   Added a "nav-profile-link" that wraps the avatar and name together.
+   Clicking it navigates to /profile.
+   Because Navbar reads user from AuthContext, any call to updateUser()
+   from ProfilePage instantly re-renders the Navbar with the new data.
+
+3. APP.JSX — /profile route
+   Added one import and one route:
+     import ProfilePage from './pages/ProfilePage'
+     <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+   The route is wrapped in ProtectedRoute so unauthenticated users are
+   redirected to /login automatically.
+
+4. PROFILEPAGE.JSX — Three Sections
+
+   Section 1 — Profile Picture (AvatarSection)
+     Shows the current avatar image or an initials circle (same logic as Navbar).
+     A "Choose Photo" button triggers a hidden <input type="file"> via useRef.
+     When a file is selected, URL.createObjectURL() creates a local preview
+     URL and shows it in the avatar circle immediately — before upload.
+     The "Upload Photo" button sends the file as FormData to
+     POST /api/upload/avatar using multipart/form-data content type.
+     On success, calls updateUser({ avatar_url: res.data.avatar_url }) so
+     the Navbar avatar updates instantly.
+     Shows "Member since Month Year" using the created_at field.
+
+   Section 2 — Edit Profile (EditProfileSection)
+     Pre-filled form using useState initialized from user.name and user.email.
+     The email field has a separate error state (emailErr) for the 409 case.
+     On save, calls PUT /api/me. If successful, calls updateUser({ name, email })
+     so the Navbar name changes immediately. If 409, shows the error inline
+     under the email field — not as a toast — so the user knows exactly what
+     the problem is.
+
+   Section 3 — Change Password (ChangePasswordSection)
+     Three password fields: Current, New, Confirm New.
+     Frontend validates match and length before sending the request.
+     On 401 response (wrong current password), shows inline error under
+     the Current Password field specifically — not as a generic toast.
+     On success, clears all three fields and shows a success toast.
+     Includes a password strength indicator bar that fills and changes
+     colour based on the new password length:
+       < 6 chars  → Red  (Weak)
+       6-9 chars  → Amber (Medium)
+       10+ chars  → Green (Strong)
+
+   Toast Component (inline, no library)
+     Each section has its own Toast component (inline in the same file).
+     It animates in with a slideIn keyframe.
+     Has a close button (✕) to dismiss it.
+     Uses green styling for success, red for error.
+
+5. CSS — index.css
+   All profile page styles were appended to the existing index.css file.
+   Uses the project's existing CSS variables (--accent, --bg-card, --border,
+   --radius, etc.) so the profile page automatically looks correct in both
+   light mode and dark mode — no extra CSS variables needed.
+   The profile-grid uses CSS Grid:
+     - On mobile  : 1 column
+     - On tablet+ : 2 columns, avatar section spans full width (grid-column 1/-1)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  SECTION 2 — CHALLENGES FACED AND HOW I OVERCAME THEM
+═══════════════════════════════════════════════════════════════════════════════
+
+Challenge 1 — Navbar Not Updating After Name or Avatar Change
+──────────────────────────────────────────────────────────────
+Problem:
+  When the user updates their name in the Edit Profile form and saves it,
+  the Navbar still shows the old name. The same issue occurs with the avatar —
+  after uploading, the Navbar initials circle doesn't become the new photo.
+
+Root Cause:
+  The user state in AuthContext was not being updated after the save.
+  The PUT /api/me call was succeeding on the backend, but the React component
+  had no mechanism to propagate that change to the Navbar — because the Navbar
+  reads from AuthContext, not from ProfilePage's local state.
+
+How I Fixed It:
+  Added an updateUser(partialData) function to AuthContext that merges partial
+  updates into the existing user state:
+    setUser(prev => ({ ...prev, ...partialData }))
+  Then called updateUser({ name, email }) inside EditProfileSection after a
+  successful save, and updateUser({ avatar_url }) after a successful avatar
+  upload. Because Navbar reads user from the same AuthContext, it re-renders
+  immediately with the new values — no page refresh, no extra API call.
+
+────────────────────────────────────────────────────────
+
+Challenge 2 — Avatar Image Not Showing After Upload (CORS / URL Issue)
+───────────────────────────────────────────────────────────────────────
+Problem:
+  After uploading the avatar and calling updateUser({ avatar_url }), the
+  Navbar was trying to load the image from a relative path like
+  /static/uploads/avatar_2_abc12345.jpg. Since React runs on port 5175
+  and Flask on port 5000, the browser was looking for the image at
+  http://localhost:5175/static/uploads/... which does not exist.
+
+How I Fixed It:
+  Updated the img src to use the full backend URL:
+    src={`http://localhost:5000${user.avatar_url}`}
+  Also added a dedicated Flask route to serve uploaded files:
+    @app.route('/static/uploads/<path:filename>')
+    def uploaded_file(filename):
+        return send_from_directory(UPLOAD_FOLDER, filename)
+  This ensures Flask serves the file correctly when the browser requests it
+  across the different port.
+
+────────────────────────────────────────────────────────
+
+Challenge 3 — MySQL ALTER TABLE IF NOT EXISTS Syntax Not Supported
+───────────────────────────────────────────────────────────────────
+Problem:
+  When running the database migration command, the query
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url ... failed
+  with a syntax error. MySQL 8.0 does not support the IF NOT EXISTS
+  clause in ALTER TABLE ADD COLUMN (unlike SQLite).
+
+How I Fixed It:
+  Ran the command without IF NOT EXISTS:
+    ALTER TABLE users ADD COLUMN avatar_url VARCHAR(255) DEFAULT NULL;
+  Since this was a fresh column addition, it worked without any issues.
+  For future runs, a check can be added at the application level before
+  running the migration.
+
+────────────────────────────────────────────────────────
+
+Challenge 4 — File Preview Before Upload Using Object URL
+──────────────────────────────────────────────────────────
+Problem:
+  The task required showing a preview of the selected image before the
+  upload button is clicked. Reading the file as base64 with FileReader
+  is asynchronous and adds complexity.
+
+How I Fixed It:
+  Used URL.createObjectURL(file) which creates a temporary local URL for
+  the selected file immediately without reading its contents:
+    setPreview(URL.createObjectURL(selected))
+  This URL is then used as the img src for the preview. It is fast,
+  synchronous, and requires no extra processing. After upload, the
+  preview state is cleared so the actual uploaded image URL takes over.
+
+────────────────────────────────────────────────────────
+
+Challenge 5 — Inline Error vs Toast for Different Error Types
+──────────────────────────────────────────────────────────────
+Problem:
+  Using a generic toast for all errors was confusing for the user.
+  A "wrong current password" toast disappears after a few seconds and
+  the user loses context. A "email already in use" message should
+  appear right next to the email field, not at the top of the section.
+
+How I Fixed It:
+  Used separate error state variables for field-specific errors:
+    const [emailErr,  setEmailErr]  = useState('')
+    const [currentErr, setCurrentErr] = useState('')
+  These are rendered as <p className="field-error"> directly below the
+  relevant input field. Generic errors (network failure, server error)
+  still use the toast. Only the 409 (email conflict) and 401 (wrong
+  current password) responses trigger field-level inline errors.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  SECTION 3 — WRITE-UP QUESTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────
+  Q1. How does your Navbar update immediately after a name or avatar change
+      without a page refresh? Explain which React concept makes this possible.
+────────────────────────────────────────────────────────
+
+The Navbar updates immediately because of React Context combined with
+React's state re-rendering mechanism.
+
+React Context (AuthContext) holds the user object as a piece of state
+using useState(). The Navbar reads the user object from this context via
+the useAuth() hook. The ProfilePage also reads from the same context.
+
+When the user saves a new name in the Edit Profile form, ProfilePage calls:
+  updateUser({ name: "New Name" })
+
+The updateUser function inside AuthContext runs:
+  setUser(prev => ({ ...prev, name: "New Name" }))
+
+This is a React state update (setUser). React state updates trigger a
+re-render of the component that owns the state (AuthProvider) and all
+its children — which includes Navbar, because Navbar is a child of
+AuthProvider in the component tree.
+
+So when setUser runs with the new user data, React re-renders the Navbar
+automatically. The Navbar reads user.name from the updated context and
+displays the new name — all without a page refresh, without a new API
+call, and without any prop drilling between ProfilePage and Navbar.
+
+The key React concept is: React Context with useState — any component
+that subscribes to the context via useContext() automatically re-renders
+whenever the context value changes.
+
+────────────────────────────────────────────────────────
+  Q2. Why do you verify the current password before allowing a change?
+      What security risk does skipping this step create?
+────────────────────────────────────────────────────────
+
+We verify the current password before allowing a change because of a
+very common and serious attack scenario: session hijacking or
+unattended device access.
+
+Consider this situation:
+  A user is logged in to ShopSphere on their laptop and then walks away
+  without logging out. Another person sits at the laptop and sees the
+  app is already authenticated. Without the current password check, they
+  could go to /profile → Change Password → type any new password → click
+  Change. The original user's password is now changed and they are locked
+  out of their own account permanently.
+
+By requiring the current password:
+  - Even if someone has physical or remote access to an active session,
+    they cannot change the password without also knowing the original.
+  - This forces the attacker to know the password before changing it,
+    which means they already have full access anyway — at which point
+    the password change adds no additional damage.
+
+Another scenario is CSRF (Cross-Site Request Forgery):
+  A malicious website could trick the browser into sending a PUT request
+  to /api/me/password with a new password. Without the current password
+  requirement, this would succeed silently. With the requirement, the
+  attacker would also need to include the correct current password in the
+  request body — which they do not know.
+
+In summary: verifying the current password ensures that only the
+legitimate owner of the account can change the password, even when an
+active session is available to someone else.
+
+────────────────────────────────────────────────────────
+  Q3. Your password change route returns 401 for wrong current password.
+      Why 401 and not 400?
+────────────────────────────────────────────────────────
+
+HTTP status codes have specific semantic meanings defined in the RFC 7231
+specification. Choosing the right one makes the API semantically correct
+and predictable for any client consuming it.
+
+400 Bad Request means the request itself is malformed — missing fields,
+invalid format, or data that cannot be understood. It is a client error
+at the input level.
+
+401 Unauthorized means the request is understood perfectly, but the
+client has failed to authenticate. The server knows what was asked,
+but is refusing because the credentials provided are incorrect.
+
+In our password change route:
+  - The request body is well-formed: all three fields are present.
+  - The new password and confirm password match.
+  - The minimum length is satisfied.
+  - The only reason we are refusing is because the current_password
+    provided does not match the actual password stored in the database.
+  - This is a credential verification failure, not a bad request.
+
+Therefore 401 is the semantically correct response. It tells the frontend
+exactly what went wrong: "I understood your request but your current
+password is wrong." This distinction allows the frontend to handle the
+two error types differently — show a format error for 400 (general
+validation), and show an inline "Current password is incorrect" error
+specifically under the current password field for 401.
+
+────────────────────────────────────────────────────────
+  Q4. What is the purpose of the updateUser function you added to
+      AuthContext?
+────────────────────────────────────────────────────────
+
+The updateUser function solves a specific problem: how do you update the
+global user state from a child component without replacing the entire user
+object?
+
+Before updateUser was added, AuthContext only had setUser — which requires
+passing the entire new user object. This means if ProfilePage wanted to
+update just the name after a successful save, it would have to either:
+  a) Make a new GET /api/me API call to refetch everything, or
+  b) Manually reconstruct the entire user object before calling setUser.
+
+Both approaches are wasteful and fragile. If a new field is added to the
+user object in the future, every component that calls setUser directly
+would have to be updated.
+
+updateUser(partialData) solves this cleanly:
+  function updateUser(partialData) {
+    setUser(prev => ({ ...prev, ...partialData }))
+  }
+
+It uses the spread operator to merge the partial update into the existing
+user state. Only the fields provided in partialData are changed. All other
+fields (id, role, email, etc.) remain unchanged.
+
+Usage examples in ProfilePage:
+  After name change   → updateUser({ name: "Sudharsun" })
+  After avatar upload → updateUser({ avatar_url: "/static/uploads/..." })
+
+This function:
+  1. Keeps the global auth state in sync with the latest user data
+  2. Triggers an instant re-render in Navbar and any other subscriber
+  3. Avoids unnecessary API calls (no re-fetch from /api/me)
+  4. Is reusable from any component that needs to update user details
+  5. Is future-proof — new fields can be updated by any component
+     without changing the AuthContext or any other component
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  End of Write-Up — Task 18 User Profile & Settings Page
+  Developed by Sudharsun A
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

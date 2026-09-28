@@ -2,6 +2,24 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 
+// ── Avatar helper — shows image if avatar_url exists, else initials circle ──
+function UserAvatar({ user }) {
+  if (user?.avatar_url) {
+    return (
+      <img
+        src={`http://localhost:5000${user.avatar_url}`}
+        alt={user.name}
+        className="nav-avatar"
+      />
+    )
+  }
+  // Initials fallback
+  const initials = user?.name
+    ? user.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+    : '?'
+  return <span className="nav-avatar-initials">{initials}</span>
+}
+
 export default function Navbar({ theme, onToggleTheme }) {
   const { user, isAdmin, logout } = useAuth()
   const { cartCount }             = useCart()
@@ -59,6 +77,14 @@ export default function Navbar({ theme, onToggleTheme }) {
             <Link to="/login"    className="nav-link">Login</Link>
             <Link to="/register" className="nav-link">Register</Link>
           </>
+        )}
+
+        {/* ── Profile avatar + name link ── */}
+        {user && (
+          <Link to="/profile" className="nav-profile-link" title="My Profile">
+            <UserAvatar user={user} />
+            <span className="nav-username">{user.name}</span>
+          </Link>
         )}
 
         {user && (
