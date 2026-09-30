@@ -1,30 +1,37 @@
 import { useState, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import api from '../api'
+import { useForm }  from '../hooks/useForm'
+import { useToast } from '../hooks/useToast'
 
-// ─── Toast notification (inline, no extra library) ────────────────────────────
-function Toast({ message, type, onClose }) {
-  if (!message) return null
+// ─── Toast Renderer — renders all active toasts from useToast ─────────────────
+function ToastContainer({ toasts, dismissToast }) {
+  if (!toasts.length) return null
   return (
-    <div className={`profile-toast profile-toast-${type}`}>
-      <span>{message}</span>
-      <button onClick={onClose} className="toast-close">✕</button>
+    <div style={{ position: 'fixed', top: '80px', right: '1.5rem', zIndex: 9999, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      {toasts.map(t => (
+        <div key={t.id} className={`profile-toast profile-toast-${t.type}`}>
+          <span>{t.message}</span>
+          <button onClick={() => dismissToast(t.id)} className="toast-close">✕</button>
+        </div>
+      ))}
     </div>
   )
 }
 
 // ─── Section 1 — Profile Picture ──────────────────────────────────────────────
-function AvatarSection({ user, updateUser }) {
-  const [preview,    setPreview]    = useState(null)
-  const [file,       setFile]       = useState(null)
-  const [uploading,  setUploading]  = useState(false)
-  const [toast,      setToast]      = useState({ msg: '', type: 'success' })
+// Uses: File upload pattern (Task 14) + useToast (Task 13)
+function AvatarSection({ user, updateUser, showToast }) {
+  const [preview,   setPreview]   = useState(null)
+  const [file,      setFile]      = useState(null)
+  const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef()
 
   function handleFileChange(e) {
     const selected = e.target.files[0]
     if (!selected) return
     setFile(selected)
+    // Instant preview using browser object URL — no upload needed yet (Task 14 pattern)
     setPreview(URL.createObjectURL(selected))
   }
 
@@ -32,24 +39,26 @@ function AvatarSection({ user, updateUser }) {
     if (!file) return
     setUploading(true)
     try {
+      // FormData is required for file uploads — JSON cannot carry binary (Task 14 pattern)
       const formData = new FormData()
       formData.append('avatar', file)
       const res = await api.post('/api/upload/avatar', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      // Update AuthContext → Navbar reflects immediately
+      // Update AuthContext — Navbar avatar updates instantly (React Context re-render)
       updateUser({ avatar_url: res.data.avatar_url })
-      setToast({ msg: '✅ Profile picture updated!', type: 'success' })
+      showToast('✅ Profile picture updated!', 'success')
       setPreview(null)
       setFile(null)
       fileInputRef.current.value = ''
     } catch (err) {
-      setToast({ msg: err.response?.data?.error || 'Upload failed', type: 'error' })
+      showToast(err.response?.data?.error || 'Upload failed', 'error')
     } finally {
       setUploading(false)
     }
   }
 
+  // Build avatar src: show preview blob URL → then server URL → then null (initials fallback)
   const avatarSrc = preview
     ? preview
     : user?.avatar_url
@@ -63,7 +72,6 @@ function AvatarSection({ user, updateUser }) {
   return (
     <div className="profile-section">
       <h2 className="section-title">📸 Profile Picture</h2>
-      <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ msg: '' })} />
 
       <div className="avatar-area">
         {avatarSrc ? (
@@ -76,6 +84,7 @@ function AvatarSection({ user, updateUser }) {
           <button className="btn-secondary" onClick={() => fileInputRef.current.click()}>
             📂 Choose Photo
           </button>
+          {/* Hidden input triggered by button click via useRef (Task 14 pattern) */}
           <input
             ref={fileInputRef}
             type="file"
@@ -107,31 +116,47 @@ function AvatarSection({ user, updateUser }) {
 }
 
 // ─── Section 2 — Edit Profile ─────────────────────────────────────────────────
-function EditProfileSection({ user, updateUser }) {
-  const [name,      setName]      = useState(user?.name || '')
-  const [email,     setEmail]     = useState(user?.email || '')
-  const [saving,    setSaving]    = useState(false)
-  const [emailErr,  setEmailErr]  = useState('')
-  const [toast,     setToast]     = useState({ msg: '', type: 'success' })
+// Uses: useForm (Task 13) + useToast (Task 13)
+// The /api/me endpoint identifies the logged-in user (JWT/session pattern — Task 16)
+function EditProfileSection({ user, updateUser, showToast }) {
+  const [emailErr, setEmailErr] = useState('')
+
+  // useForm — Task 13 pattern: manages form values, errors, handleChange, reset
+  const { values, errors, handleChange, validateForm } = useForm(
+    { name: user?.name || '', email: user?.email || '' },
+    (vals) => {
+      const errs = {}
+      if (!vals.name.trim())  errs.name  = 'Name is required'
+      if (!vals.email.trim()) errs.email = 'Email is required'
+      else if (!/\S+@\S+\.\S+/.test(vals.email)) errs.email = 'Enter a valid email'
+      return errs
+    }
+  )
+
+  const [saving, setSaving] = useState(false)
 
   async function handleSave(e) {
     e.preventDefault()
     setEmailErr('')
-    if (!name.trim() || !email.trim()) return
+
+    // useForm validateForm() — runs validation, returns true if no errors
+    if (!validateForm()) return
 
     setSaving(true)
     try {
-      await api.put('/api/me', { name: name.trim(), email: email.trim() })
-      // Update AuthContext → Navbar name updates instantly
-      updateUser({ name: name.trim(), email: email.trim() })
-      setToast({ msg: '✅ Profile updated successfully!', type: 'success' })
+      // PUT /api/me — session cookie identifies the user (Task 16 pattern)
+      await api.put('/api/me', { name: values.name.trim(), email: values.email.trim() })
+      // updateUser merges into AuthContext → Navbar name updates instantly
+      updateUser({ name: values.name.trim(), email: values.email.trim() })
+      // useToast — Task 13 pattern
+      showToast('✅ Profile updated successfully!', 'success')
     } catch (err) {
       const status = err.response?.status
       const msg    = err.response?.data?.error || 'Update failed'
       if (status === 409) {
-        setEmailErr(msg)  // inline error under email field
+        setEmailErr(msg)  // Inline error for email conflict (409 Conflict)
       } else {
-        setToast({ msg, type: 'error' })
+        showToast(msg, 'error')
       }
     } finally {
       setSaving(false)
@@ -141,30 +166,33 @@ function EditProfileSection({ user, updateUser }) {
   return (
     <div className="profile-section">
       <h2 className="section-title">✏️ Edit Profile</h2>
-      <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ msg: '' })} />
 
       <form onSubmit={handleSave} className="profile-form">
         <div className="form-group">
           <label>Full Name</label>
+          {/* useForm handleChange reads e.target.name to update values.name */}
           <input
             type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
+            name="name"
+            value={values.name}
+            onChange={handleChange}
             placeholder="Your full name"
-            required
           />
+          {errors.name && <p className="field-error">⚠️ {errors.name}</p>}
         </div>
 
         <div className="form-group">
           <label>Email Address</label>
           <input
             type="email"
-            value={email}
-            onChange={e => { setEmail(e.target.value); setEmailErr('') }}
+            name="email"
+            value={values.email}
+            onChange={e => { handleChange(e); setEmailErr('') }}
             placeholder="your@email.com"
-            required
           />
-          {emailErr && <p className="field-error">⚠️ {emailErr}</p>}
+          {(errors.email || emailErr) && (
+            <p className="field-error">⚠️ {emailErr || errors.email}</p>
+          )}
         </div>
 
         <button type="submit" className="btn-primary" disabled={saving}>
@@ -176,51 +204,47 @@ function EditProfileSection({ user, updateUser }) {
 }
 
 // ─── Section 3 — Change Password ──────────────────────────────────────────────
-function ChangePasswordSection() {
-  const [form,       setForm]       = useState({ current: '', newPass: '', confirm: '' })
-  const [saving,     setSaving]     = useState(false)
+// Uses: useForm (Task 13) + useToast (Task 13)
+function ChangePasswordSection({ showToast }) {
   const [currentErr, setCurrentErr] = useState('')
-  const [matchErr,   setMatchErr]   = useState('')
-  const [toast,      setToast]      = useState({ msg: '', type: 'success' })
+  const [saving, setSaving] = useState(false)
 
-  function handleChange(e) {
-    const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
-    if (name === 'current') setCurrentErr('')
-    if (name === 'newPass' || name === 'confirm') setMatchErr('')
-  }
+  // useForm — Task 13 pattern for password form
+  const { values, errors, handleChange, validateForm, resetForm } = useForm(
+    { current: '', newPass: '', confirm: '' },
+    (vals) => {
+      const errs = {}
+      if (!vals.current)             errs.current = 'Current password is required'
+      if (!vals.newPass)             errs.newPass = 'New password is required'
+      else if (vals.newPass.length < 6) errs.newPass = 'At least 6 characters'
+      if (vals.newPass !== vals.confirm) errs.confirm = 'Passwords do not match'
+      return errs
+    }
+  )
 
   async function handleSubmit(e) {
     e.preventDefault()
     setCurrentErr('')
-    setMatchErr('')
 
-    // Frontend validation
-    if (form.newPass !== form.confirm) {
-      setMatchErr('New passwords do not match')
-      return
-    }
-    if (form.newPass.length < 6) {
-      setMatchErr('Password must be at least 6 characters')
-      return
-    }
+    // useForm validateForm — runs validation before API call
+    if (!validateForm()) return
 
     setSaving(true)
     try {
       await api.put('/api/me/password', {
-        current_password:  form.current,
-        new_password:      form.newPass,
-        confirm_password:  form.confirm
+        current_password:  values.current,
+        new_password:      values.newPass,
+        confirm_password:  values.confirm
       })
-      setToast({ msg: '✅ Password changed successfully!', type: 'success' })
-      setForm({ current: '', newPass: '', confirm: '' })
+      showToast('✅ Password changed successfully!', 'success')
+      resetForm()  // useForm resetForm — clears all fields on success
     } catch (err) {
       const status = err.response?.status
       const msg    = err.response?.data?.error || 'Password change failed'
       if (status === 401) {
-        setCurrentErr(msg)  // inline under current password field
+        setCurrentErr(msg)  // 401 = wrong current password → inline error
       } else {
-        setToast({ msg, type: 'error' })
+        showToast(msg, 'error')
       }
     } finally {
       setSaving(false)
@@ -230,7 +254,6 @@ function ChangePasswordSection() {
   return (
     <div className="profile-section">
       <h2 className="section-title">🔒 Change Password</h2>
-      <Toast message={toast.msg} type={toast.type} onClose={() => setToast({ msg: '' })} />
 
       <form onSubmit={handleSubmit} className="profile-form">
         <div className="form-group">
@@ -238,12 +261,13 @@ function ChangePasswordSection() {
           <input
             type="password"
             name="current"
-            value={form.current}
-            onChange={handleChange}
+            value={values.current}
+            onChange={e => { handleChange(e); setCurrentErr('') }}
             placeholder="Your current password"
-            required
           />
-          {currentErr && <p className="field-error">⚠️ {currentErr}</p>}
+          {(currentErr || errors.current) && (
+            <p className="field-error">⚠️ {currentErr || errors.current}</p>
+          )}
         </div>
 
         <div className="form-group">
@@ -251,27 +275,27 @@ function ChangePasswordSection() {
           <input
             type="password"
             name="newPass"
-            value={form.newPass}
+            value={values.newPass}
             onChange={handleChange}
             placeholder="Min 6 characters"
-            required
           />
           {/* Password strength indicator */}
-          {form.newPass.length > 0 && (
+          {values.newPass.length > 0 && (
             <div className="strength-bar">
               <div
                 className={`strength-fill strength-${
-                  form.newPass.length < 6 ? 'weak'
-                  : form.newPass.length < 10 ? 'medium'
+                  values.newPass.length < 6  ? 'weak'
+                  : values.newPass.length < 10 ? 'medium'
                   : 'strong'
                 }`}
-                style={{ width: `${Math.min((form.newPass.length / 12) * 100, 100)}%` }}
+                style={{ width: `${Math.min((values.newPass.length / 12) * 100, 100)}%` }}
               />
               <span className="strength-label">
-                {form.newPass.length < 6 ? 'Weak' : form.newPass.length < 10 ? 'Medium' : 'Strong'}
+                {values.newPass.length < 6 ? 'Weak' : values.newPass.length < 10 ? 'Medium' : 'Strong'}
               </span>
             </div>
           )}
+          {errors.newPass && <p className="field-error">⚠️ {errors.newPass}</p>}
         </div>
 
         <div className="form-group">
@@ -279,12 +303,11 @@ function ChangePasswordSection() {
           <input
             type="password"
             name="confirm"
-            value={form.confirm}
+            value={values.confirm}
             onChange={handleChange}
             placeholder="Repeat new password"
-            required
           />
-          {matchErr && <p className="field-error">⚠️ {matchErr}</p>}
+          {errors.confirm && <p className="field-error">⚠️ {errors.confirm}</p>}
         </div>
 
         <button type="submit" className="btn-primary" disabled={saving}>
@@ -296,22 +319,44 @@ function ChangePasswordSection() {
 }
 
 // ─── Main ProfilePage ──────────────────────────────────────────────────────────
+// Integrates:
+//   ✅ /api/me identifies logged-in user (Task 16 JWT/session pattern)
+//   ✅ File upload for profile picture (Task 14 pattern)
+//   ✅ useForm for Edit Profile + Change Password forms (Task 13)
+//   ✅ useToast for success/error feedback (Task 13)
+//   ✅ Dark mode via CSS variables [data-theme="dark"] (Task 17)
 export default function ProfilePage() {
   const { user, updateUser } = useAuth()
+  // useToast — Task 13 pattern: single shared toast system for the whole page
+  const { toasts, showToast, dismissToast } = useToast()
 
   if (!user) return <div className="page-loading">Loading profile...</div>
 
   return (
     <div className="profile-page">
+      {/* Global toast container — fixed position, top-right */}
+      <ToastContainer toasts={toasts} dismissToast={dismissToast} />
+
       <div className="profile-header">
-        <h1>👤 My Profile & Settings</h1>
+        <h1>👤 My Profile &amp; Settings</h1>
         <p>Manage your account details, profile picture and password.</p>
       </div>
 
       <div className="profile-grid">
-        <AvatarSection      user={user} updateUser={updateUser} />
-        <EditProfileSection user={user} updateUser={updateUser} />
-        <ChangePasswordSection />
+        {/* All three sections share the same showToast from useToast */}
+        <AvatarSection
+          user={user}
+          updateUser={updateUser}
+          showToast={showToast}
+        />
+        <EditProfileSection
+          user={user}
+          updateUser={updateUser}
+          showToast={showToast}
+        />
+        <ChangePasswordSection
+          showToast={showToast}
+        />
       </div>
     </div>
   )
