@@ -1,0 +1,643 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║              TASK 19 — REAL-TIME NOTIFICATIONS (WebSockets)                  ║
+║              ShopSphere E-Commerce Platform                                  ║
+║              Submitted by: Sudharsun                                         ║
+║              Deadline     : 1st October 2026 by 6:30 PM                     ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 1 — PROJECT OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This task extends the ShopSphere e-commerce application (built from Task 12
+through Task 18) by adding a real-time notification system using WebSockets.
+
+The core feature:
+  - When a customer places an order, the admin sees a notification bell badge
+    appear INSTANTLY in the navbar — without refreshing the page.
+  - The notification shows order details (order ID, customer name, amount).
+  - Admins can open a dropdown, view all notifications, mark them as read,
+    and delete them.
+  - Notifications are also saved to the database so they survive page refreshes.
+
+Technologies Used:
+  Backend  : Flask + Flask-SocketIO + eventlet + MySQL
+  Frontend : React + socket.io-client
+  Protocol : WebSocket (via Socket.IO)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 2 — IMPLEMENTATION DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+─────────────────────────────────────────────────────────────────────────────
+  DATABASE CHANGE — notifications table
+─────────────────────────────────────────────────────────────────────────────
+
+A new table was created in the 'ecommerce' MySQL database:
+
+  CREATE TABLE notifications (
+      id         INT AUTO_INCREMENT PRIMARY KEY,
+      user_id    INT NOT NULL,
+      message    VARCHAR(255) NOT NULL,
+      type       ENUM('order', 'info', 'alert') DEFAULT 'info',
+      is_read    BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  - user_id  : Links to the user who receives the notification
+  - type     : 'order' for new orders, 'alert' for low stock, 'info' for general
+  - is_read  : Tracks read/unread state persistently in the database
+  - ON DELETE CASCADE : If a user is deleted, their notifications are also deleted
+
+─────────────────────────────────────────────────────────────────────────────
+  BACKEND — Flask-SocketIO Setup (backend/app.py)
+─────────────────────────────────────────────────────────────────────────────
+
+Packages installed:
+  pip install flask-socketio eventlet
+
+SocketIO was initialized with:
+  socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+
+  - cors_allowed_origins="*"  : Allows the React frontend on port 5173 to connect
+  - async_mode='eventlet'     : Uses eventlet for non-blocking async WebSocket handling
+  - app.run() was replaced with socketio.run(app, debug=True, port=5000)
+
+─────────────────────────────────────────────────────────────────────────────
+  BACKEND — Socket Event Handlers
+─────────────────────────────────────────────────────────────────────────────
+
+Three WebSocket event handlers were added:
+
+  1. @socketio.on('connect')
+       Fires when any client opens a WebSocket connection.
+       Logs: "Client connected: <session_id>"
+
+  2. @socketio.on('disconnect')
+       Fires when a client closes the browser tab or logs out.
+       Logs: "Client disconnected: <session_id>"
+
+  3. @socketio.on('join')
+       The most important handler. The React frontend emits this event
+       right after connecting, sending: { user_id: 1, role: 'admin' }
+
+       The server then:
+         a) Calls join_room(f"user_{user_id}")
+            → Creates a personal room like "user_1", "user_3", etc.
+            → Useful for sending notifications to one specific user in future
+
+         b) If role == 'admin', also calls join_room('admins')
+            → All admins share this room
+            → When a new order arrives, we emit ONLY to this room
+
+         c) Emits back: emit('joined', { room: ..., role: ... })
+            → Confirms to the frontend that room joining was successful
+
+─────────────────────────────────────────────────────────────────────────────
+  BACKEND — Emitting Notifications When an Order is Placed
+─────────────────────────────────────────────────────────────────────────────
+
+Inside the existing POST /api/orders route, after the order is saved to DB,
+two new steps were added:
+
+  STEP 1 — Save notification to database for every admin:
+    cursor.execute(
+        "INSERT INTO notifications (user_id, message, type)
+         SELECT id, %s, 'order' FROM users WHERE role='admin'",
+        (f"New order #{order_id} placed by {customer_name} — {total_fmt}",)
+    )
+    This uses a SELECT subquery to find all admin user IDs and insert
+    one notification row for each of them.
+
+  STEP 2 — Emit real-time WebSocket event to the 'admins' room:
+    socketio.emit(
+        'new_notification',
+        { 'message': ..., 'type': 'order', 'order_id': order_id },
+        room='admins'
+    )
+    This pushes the notification instantly to every admin browser
+    that has an open socket connection in the 'admins' room.
+
+─────────────────────────────────────────────────────────────────────────────
+  BACKEND — Low Stock Alert (Bonus Feature)
+─────────────────────────────────────────────────────────────────────────────
+
+After updating product stock when an order is placed, the code checks:
+  - If the new stock level of any ordered product is <= 5
+  - If yes, it inserts an 'alert' type notification for all admins
+  - And emits a 'new_notification' WebSocket event of type 'alert' to admins
+
+This is fully automatic — admins get warned without any manual trigger.
+
+─────────────────────────────────────────────────────────────────────────────
+  BACKEND — REST API Routes for Notifications
+─────────────────────────────────────────────────────────────────────────────
+
+Four REST routes were added to support loading, reading, and deleting:
+
+  GET  /api/notifications
+       Returns all notifications for the logged-in user.
+       Ordered by newest first (ORDER BY created_at DESC).
+       Returns: id, message, type, is_read, created_at
+
+  PUT  /api/notifications/<id>/read
+       Marks a single notification as read (is_read = TRUE).
+       Scoped to the logged-in user (WHERE user_id = session user_id).
+
+  PUT  /api/notifications/read-all
+       Marks ALL notifications for the logged-in user as read at once.
+
+  DELETE /api/notifications/<id>
+       Permanently deletes a single notification.
+       Also scoped to the logged-in user for security.
+
+─────────────────────────────────────────────────────────────────────────────
+  FRONTEND — SocketContext.jsx (new file)
+─────────────────────────────────────────────────────────────────────────────
+
+A new React Context was created at: src/context/SocketContext.jsx
+
+This context manages the entire WebSocket lifecycle:
+
+  1. On user login → opens a socket connection to http://localhost:5000
+  2. On socket connect → emits 'join' with { user_id, role }
+  3. Listens for 'new_notification' → prepends to notifications state
+  4. Increments unreadCount by 1 for every new notification received
+  5. On user logout → disconnects the socket and resets state
+
+  On mount (when user logs in), it also calls GET /api/notifications
+  to load all previously saved notifications from the database.
+  This means notifications survive a page refresh.
+
+  Exposed via context:
+    - notifications      : Array of notification objects
+    - unreadCount        : Number of unread notifications
+    - markAsRead(id)     : Marks one as read + calls PUT /api/notifications/<id>/read
+    - markAllAsRead()    : Marks all as read + calls PUT /api/notifications/read-all
+    - deleteNotification(id) : Removes from state + calls DELETE /api/notifications/<id>
+
+─────────────────────────────────────────────────────────────────────────────
+  FRONTEND — Bonus Features in SocketContext
+─────────────────────────────────────────────────────────────────────────────
+
+  Sound Alert:
+    When a new notification arrives, a synthesized audio ping is played using
+    the Web Audio API (no external audio file needed). An oscillator is created,
+    frequency sweeps from 880 Hz to 440 Hz in 0.3 seconds, then fades out.
+    This works in all modern browsers without any library.
+
+  Browser Push Notification:
+    On first login, the app requests Notification permission from the browser.
+    When a new notification arrives AND the browser tab is not active
+    (document.hidden === true), a native OS notification is shown using:
+      new Notification('ShopSphere', { body: data.message })
+    This means admins are alerted even when they are on another tab or window.
+
+─────────────────────────────────────────────────────────────────────────────
+  FRONTEND — NotificationBell.jsx (new component)
+─────────────────────────────────────────────────────────────────────────────
+
+Created at: src/components/NotificationBell.jsx
+
+Features:
+  - Bell icon (🔔) button in the Navbar
+  - Red badge shows unread count (hidden when count is 0)
+  - Badge animates with a "pop" effect (CSS keyframe) when it appears
+  - Clicking the bell opens/closes a dropdown panel
+  - Clicking anywhere outside the dropdown closes it (useRef + mousedown event)
+  - Dropdown shows the last 10 notifications
+  - Each notification shows:
+      * Type icon  — 🛒 for order, ⚠️ for alert, ℹ️ for info
+      * Message text
+      * Relative time — "just now", "5 min ago", "2 hr ago", "1 day ago"
+      * Unread state — purple-tinted background + blue dot indicator
+      * Read state   — dimmed (opacity: 0.75), lighter text weight
+      * Delete button (×) — appears on hover, removes the notification
+  - "Mark all read" button at the top of the dropdown
+  - "You're all caught up! No notifications yet" empty state
+  - Footer shows "+N more notifications" if there are more than 10
+
+─────────────────────────────────────────────────────────────────────────────
+  FRONTEND — main.jsx and Navbar.jsx changes
+─────────────────────────────────────────────────────────────────────────────
+
+  main.jsx:
+    SocketProvider was added wrapping the App component:
+      <AuthProvider>
+        <CartProvider>
+          <SocketProvider>    ← NEW
+            <App />
+          </SocketProvider>
+        </CartProvider>
+      </AuthProvider>
+
+    SocketProvider must be inside AuthProvider because it uses useAuth()
+    to get the current user and connect/disconnect the socket based on login state.
+
+  Navbar.jsx:
+    NotificationBell component was imported and placed in the right section
+    of the navbar, between the Cart button and the profile avatar.
+    It is shown for ALL logged-in users (both customers and admins).
+    Admins receive order and alert notifications.
+    Customers can receive info-type notifications in future.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 3 — CHALLENGES FACED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Challenge 1 — Replacing app.run() with socketio.run()
+─────────────────────────────────────────────────────
+  Flask-SocketIO requires a different server startup. The standard app.run()
+  does not support WebSocket connections because it uses a synchronous WSGI
+  server. socketio.run(app, ...) replaces it with an eventlet-based async
+  server that can handle persistent socket connections alongside HTTP requests.
+  If you forget this step, the frontend connects but events are never received.
+
+Challenge 2 — CORS with WebSockets
+───────────────────────────────────
+  Standard Flask-CORS does not cover WebSocket handshakes. Flask-SocketIO has
+  its own cors_allowed_origins parameter. Setting it to "*" ensures the React
+  frontend at localhost:5173 can upgrade its HTTP connection to WebSocket.
+  Getting both Flask-CORS (for REST) and SocketIO CORS (for sockets) configured
+  correctly at the same time was a key challenge.
+
+Challenge 3 — Keeping the socket alive across React renders
+────────────────────────────────────────────────────────────
+  React's useEffect hook re-runs whenever dependencies change. If user object
+  is listed as a dependency, any tiny update to the user (like name change)
+  would disconnect and reconnect the socket unnecessarily.
+  The fix: use user?.id as the dependency instead of the whole user object.
+  This way the socket only reconnects when the actual user ID changes (login/logout).
+
+Challenge 4 — Persisting notifications across page refresh
+───────────────────────────────────────────────────────────
+  WebSocket is a live connection — when the user refreshes the page, it
+  disconnects. All in-memory state (notifications array) is wiped.
+  The solution was a two-layer approach:
+    Layer 1 (real-time): Socket emits push new notifications instantly to state.
+    Layer 2 (persistent): REST API GET /api/notifications loads saved notifications
+                          from MySQL on every login/page load.
+  Both layers work together: DB for history, socket for live updates.
+
+Challenge 5 — Targeting only admins (rooms vs broadcast)
+─────────────────────────────────────────────────────────
+  Socket.IO's emit() without a room parameter broadcasts to EVERY connected
+  client. That would send order notifications to customers too, which is wrong.
+  The fix: use rooms. When an admin connects and emits 'join', the server calls
+  join_room('admins'). When a new order arrives, socketio.emit(..., room='admins')
+  sends ONLY to that room. Customers are never in the 'admins' room, so they
+  never receive admin-only events.
+
+Challenge 6 — Avoiding duplicate notifications
+───────────────────────────────────────────────
+  When a notification arrives via WebSocket, it is added to state with a
+  temporary ID (Date.now()). But it is also saved in the database. On the
+  next page refresh, GET /api/notifications reloads from DB with the real ID.
+  If we were not careful, we could end up with duplicates (one from the socket
+  push, one from the DB reload). The solution: on refresh, we always replace
+  state entirely from the DB. Real-time notifications only add to state during
+  the current session; they are not re-added after refresh (DB version takes over).
+
+Challenge 7 — Notification dropdown closing on outside click
+─────────────────────────────────────────────────────────────
+  A common UX problem: dropdowns that don't close when clicking outside them.
+  The fix: useRef is attached to the dropdown wrapper div. A mousedown event
+  listener on document checks if the click target is outside the ref element.
+  If it is outside, the dropdown is closed. The listener is also cleaned up
+  when the component unmounts (returned from useEffect) to avoid memory leaks.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 4 — WRITE-UP: 4 REQUIRED QUESTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+─────────────────────────────────────────────────────────────────────────────
+  QUESTION 1
+  What is the difference between HTTP and WebSocket communication?
+  Draw the flow of each in text/arrows.
+─────────────────────────────────────────────────────────────────────────────
+
+HTTP Communication (Request-Response Model):
+--------------------------------------------
+Every single interaction requires the browser to initiate a new request.
+The server can ONLY reply to a request — it can never reach out on its own.
+Once the response is sent, the connection closes.
+
+  Browser ──── GET /api/products ─────────────────▶ Server
+  Browser ◀─── 200 OK + JSON data ─────────────── Server
+  [Connection CLOSED]
+
+  Browser ──── POST /api/orders ──────────────────▶ Server
+  Browser ◀─── 201 Created + { order_id: 5 } ──── Server
+  [Connection CLOSED]
+
+  ✗ Server CANNOT send a message to browser without a request.
+  ✗ If you want live updates, you must poll (request every few seconds),
+    which is wasteful and not truly real-time.
+
+WebSocket Communication (Persistent Two-Way Channel):
+------------------------------------------------------
+A WebSocket starts as an HTTP request but upgrades to a persistent TCP
+connection. Once open, BOTH sides can send messages at any time.
+The connection stays open until explicitly closed.
+
+  Browser ──── HTTP Upgrade Request (ws://) ──────▶ Server
+  Server  ◀─── 101 Switching Protocols ─────────── Browser
+  [Connection STAYS OPEN — persistent pipe]
+
+  Browser ════ emit('join', { user_id: 1 }) ══════▶ Server
+  Browser ◀═══ emit('joined', { room: ... }) ══════ Server
+  [... time passes, customer places order ...]
+  Server  ════ emit('new_notification', {...}) ════▶ Admin Browser
+  [No request was made — server pushed on its own!]
+
+  ✓ Server CAN push messages to client at any time.
+  ✓ No polling needed. Truly real-time.
+  ✓ Much lower overhead — one connection handles unlimited events.
+
+Summary:
+  HTTP     = Client always asks, server always answers, connection closes.
+  WebSocket = One handshake, then both sides talk freely, connection stays open.
+
+─────────────────────────────────────────────────────────────────────────────
+  QUESTION 2
+  What is a Socket.IO room and why did you use one for admin users
+  instead of broadcasting to everyone?
+─────────────────────────────────────────────────────────────────────────────
+
+A Socket.IO room is a named group (like a channel or a private group chat)
+that clients can join. When a client joins a room, they subscribe to events
+emitted to that room. Multiple clients can be in the same room.
+
+How rooms work:
+  # Server side — client joins a room
+  join_room('admins')       # client is now in the 'admins' room
+
+  # Server side — emit to everyone in the room
+  socketio.emit('new_notification', data, room='admins')
+  # Only clients in 'admins' receive this. No one else.
+
+  # Without a room — broadcast to ALL connected clients
+  socketio.emit('new_notification', data)
+  # Every connected browser receives this — customers too!
+
+Why rooms instead of broadcast for this task:
+  When a customer places an order, only the ADMIN should see the notification.
+  If we broadcast (emit without a room), the notification would appear for:
+    - The customer who just placed the order (confusing)
+    - Other customers browsing products (irrelevant to them)
+    - Other admins (correct)
+
+  By using rooms:
+    - Customers NEVER call join_room('admins'), so they never receive admin events
+    - Only users whose role === 'admin' are placed in the 'admins' room
+    - Order notifications go ONLY to admins — clean and targeted
+
+  Additionally, we created personal rooms:
+    join_room(f"user_{user_id}")  →  e.g., "user_3", "user_7"
+  This allows future notifications targeted at one specific user
+  (e.g., "Your order has been shipped" to user_3 only).
+
+  Rooms give us fine-grained control over who receives what event.
+
+─────────────────────────────────────────────────────────────────────────────
+  QUESTION 3
+  When a user refreshes the page, the socket disconnects and reconnects.
+  How do previously saved notifications still appear in the bell dropdown?
+─────────────────────────────────────────────────────────────────────────────
+
+WebSocket is an in-memory, live connection. When the page is refreshed:
+  1. The browser closes the existing tab — socket disconnects
+  2. The React app's state is completely wiped (useState resets to [])
+  3. A new socket connection is established on page load
+  4. All in-memory notifications are GONE from state
+
+But the notifications still appear because of the TWO-LAYER system:
+
+  Layer 1 — Persistence (Database):
+    Every time a new notification is created on the server, it is inserted
+    into the MySQL notifications table BEFORE the socket event is emitted:
+      INSERT INTO notifications (user_id, message, type)
+      SELECT id, %s, 'order' FROM users WHERE role='admin'
+    This ensures the notification is permanently stored regardless of
+    whether the admin is online, offline, or refreshing.
+
+  Layer 2 — Loading on mount (REST API):
+    Inside SocketContext, there is a useEffect that runs every time the
+    user logs in (or page loads with an active session):
+      useEffect(() => {
+        api.get('/api/notifications')       // REST call to GET /api/notifications
+          .then(res => {
+            setNotifications(res.data)      // Load all from database
+            setUnreadCount(res.data.filter(n => !n.is_read).length)
+          })
+      }, [user])
+    This fetches ALL previously saved notifications from the database
+    and populates the bell dropdown immediately on page load.
+
+  How they work together:
+    1. Admin is online, customer places order.
+    2. Server saves notification to DB AND emits via socket.
+    3. Admin sees notification pop up in real-time (socket delivery).
+    4. Admin refreshes the page.
+    5. Socket reconnects. SocketContext calls GET /api/notifications.
+    6. All notifications (including the one from step 2) reload from DB.
+    7. Admin still sees all their notifications — nothing is lost.
+
+  The socket handles LIVE delivery. The REST API handles PERSISTENCE.
+  Together they give the full experience.
+
+─────────────────────────────────────────────────────────────────────────────
+  QUESTION 4
+  What does socketio.emit() do versus emit() inside a @socketio.on() handler?
+  What is the difference?
+─────────────────────────────────────────────────────────────────────────────
+
+Both functions send a Socket.IO event, but they differ in:
+  - Who can call them
+  - Where the message goes (the recipient)
+  - What context they have access to
+
+━━━━ emit() inside a @socketio.on() handler ━━━━
+
+  Usage example:
+    @socketio.on('join')
+    def on_join(data):
+        join_room('admins')
+        emit('joined', {'room': 'admins'})   ← this emit()
+
+  - This is a Flask-SocketIO function imported at the top: from flask_socketio import emit
+  - It can ONLY be called inside a @socketio.on() handler
+  - By default, it sends the event back to the SAME CLIENT who triggered the handler
+    (i.e., the client whose 'join' event we are currently handling)
+  - It has access to the current request context (request.sid, etc.)
+  - You can pass room= or broadcast=True to send elsewhere, but default = sender only
+
+  Think of it like: "Reply to the person who just talked to me."
+
+━━━━ socketio.emit() called on the SocketIO instance ━━━━
+
+  Usage example:
+    # Inside POST /api/orders route (a regular HTTP route, NOT a socket handler)
+    socketio.emit(
+        'new_notification',
+        { 'message': '...', 'type': 'order' },
+        room='admins'
+    )   ← this socketio.emit()
+
+  - This is called on the socketio OBJECT (the SocketIO instance)
+  - It can be called from ANYWHERE in the Python code:
+      * Inside HTTP routes (like POST /api/orders)
+      * Inside helper functions
+      * Inside background tasks or scheduled jobs
+      * Even from outside a request context entirely
+  - It is used to PUSH events from the server proactively
+  - Without room=, it broadcasts to ALL connected clients
+  - With room='admins', it sends only to that room
+
+  Think of it like: "The server is calling out to specific clients on its own."
+
+━━━━ Side-by-side comparison ━━━━
+
+  Feature               emit()                    socketio.emit()
+  ─────────────────     ────────────────────────  ──────────────────────────
+  Where used            Inside @socketio.on()     Anywhere in Python code
+  Default recipient     The sender (that client)  All clients (broadcast)
+  Use with room=        Yes                        Yes
+  Needs request ctx     Yes                        No
+  Common use            Replying to client         Pushing server events
+  Example               Confirm room join          Notify admins of new order
+
+In this project:
+  - emit('joined', ...) is used to confirm to the client that it joined a room
+  - socketio.emit('new_notification', ..., room='admins') is used to push order
+    notifications to all admins from inside the POST /api/orders HTTP route,
+    which is NOT a socket handler — only socketio.emit() works there.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 5 — BONUS FEATURES IMPLEMENTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. Low Stock Alert
+     ───────────────
+     After each order reduces product stock, the code checks if the new
+     stock level is <= 5. If yes, an alert-type notification is inserted
+     for all admins AND emitted in real-time to the 'admins' room.
+     Icon: ⚠️  Example: "⚠️ Low stock: 'Wireless Mouse' — only 3 left!"
+
+  2. Sound Alert (Web Audio API)
+     ────────────────────────────
+     When a new notification arrives, a subtle audio ping plays automatically.
+     Uses the browser's Web Audio API — no external audio file required.
+     An oscillator sweeps from 880Hz to 440Hz over 0.3 seconds, creating a
+     soft descending ping sound. Fails silently if the browser blocks audio.
+
+  3. Browser Push Notification (Notification API)
+     ───────────────────────────────────────────────
+     On login, the app requests native browser notification permission.
+     When a new notification arrives AND the browser tab is not focused
+     (document.hidden === true), the browser shows a native OS-level popup:
+     "ShopSphere — New order #5 placed — ₹1,499.00"
+     This means admins are alerted even when they're working in another tab.
+
+  4. Animated Badge
+     ───────────────
+     The red unread count badge uses a CSS keyframe animation (badgePop)
+     that scales from 0 to 1 when it first appears, giving a satisfying
+     "pop" visual feedback for every new notification.
+
+  5. Click-Outside-to-Close
+     ────────────────────────
+     The notification dropdown automatically closes when the user clicks
+     anywhere outside of it — standard UX behavior, implemented using
+     useRef and a document mousedown event listener.
+
+  6. Full Dark Mode Support
+     ───────────────────────
+     All notification components (bell, badge, dropdown, items) are fully
+     styled using CSS custom properties that automatically switch between
+     light and dark themes when the user toggles the theme in the Navbar.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 6 — FILES ADDED / MODIFIED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  DATABASE:
+    [NEW]    notifications table in MySQL ecommerce database
+
+  BACKEND:
+    [MODIFY] backend/app.py
+               - Added Flask-SocketIO import and initialization
+               - Added @socketio.on('connect') handler
+               - Added @socketio.on('disconnect') handler
+               - Added @socketio.on('join') handler (rooms)
+               - Modified POST /api/orders to save + emit notification
+               - Added low stock alert logic inside POST /api/orders
+               - Added GET  /api/notifications
+               - Added PUT  /api/notifications/<id>/read
+               - Added PUT  /api/notifications/read-all
+               - Added DELETE /api/notifications/<id>
+               - Changed app.run() to socketio.run()
+
+    [MODIFY] backend/requirements.txt
+               - Added: flask-socketio
+               - Added: eventlet
+
+  FRONTEND:
+    [NEW]    frontend/src/context/SocketContext.jsx
+               - WebSocket connection lifecycle management
+               - Loads notifications from DB on mount
+               - Listens for real-time events
+               - markAsRead / markAllAsRead / deleteNotification helpers
+               - Sound alert via Web Audio API (bonus)
+               - Browser push notification (bonus)
+
+    [NEW]    frontend/src/components/NotificationBell.jsx
+               - Bell icon with animated unread badge
+               - Dropdown panel with notification list
+               - Type icons, relative time, read/unread states
+               - Delete button per notification
+               - Mark all read button
+               - Empty state and click-outside-close
+
+    [MODIFY] frontend/src/main.jsx
+               - Wrapped App with <SocketProvider>
+
+    [MODIFY] frontend/src/components/Navbar.jsx
+               - Imported and rendered <NotificationBell />
+
+    [MODIFY] frontend/src/index.css
+               - Added 200+ lines of notification-specific CSS
+               - Bell button, badge, dropdown, items, empty state,
+                 animations, dark mode support
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 7 — HOW TO RUN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  STEP 1 — Start the Backend
+  Open Terminal 1:
+    cd E:\Sudharsun_Stackly-Task\Task-19_Real_Time_Notifications\backend
+    python app.py
+  Expected output: * Running on http://127.0.0.1:5000
+
+  STEP 2 — Start the Frontend
+  Open Terminal 2:
+    cd E:\Sudharsun_Stackly-Task\Task-19_Real_Time_Notifications\frontend
+    npm run dev
+  Expected output: Local: http://localhost:5173/
+
+  STEP 3 — Test Real-Time Flow
+    Tab 1: Open http://localhost:5173 → Login as customer
+    Tab 2: Open http://localhost:5173 → Login as admin
+    In Tab 2 console: You should see "Socket connected: <id>"
+    In Tab 1: Add to cart → Checkout → Place order
+    In Tab 2: Watch bell badge appear with "1" instantly (no refresh!)
+    Click bell → See dropdown with order notification
+    Click notification → Badge clears, item dims (marked as read)
+    Click "Mark all read" → All cleared
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Task 19 — Completed
+  Submitted: 1st October 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
