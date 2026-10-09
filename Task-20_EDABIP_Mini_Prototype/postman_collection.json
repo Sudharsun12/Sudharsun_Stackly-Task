@@ -1,0 +1,199 @@
+﻿{
+  "info": {
+    "name": "EDABIP Mini Prototype API",
+    "_postman_id": "edabip-mini-collection-2026",
+    "description": "Full collection for Task 20 EDABIP Mini Prototype. Includes automatic JWT extraction script on Login.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:5000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth - 1. Login (Admin)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var jsonData = pm.response.json();",
+              "if (jsonData.token) {",
+              "    pm.collectionVariables.set('token', jsonData.token);",
+              "    console.log('Token saved:', jsonData.token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@edabip.com\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/login", "host": ["{{baseUrl}}"], "path": ["api", "login"] }
+      }
+    },
+    {
+      "name": "Auth - 2. Login (Analyst)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"analyst@edabip.com\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/login", "host": ["{{baseUrl}}"], "path": ["api", "login"] }
+      }
+    },
+    {
+      "name": "Auth - 3. Login (Viewer)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"viewer@edabip.com\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/login", "host": ["{{baseUrl}}"], "path": ["api", "login"] }
+      }
+    },
+    {
+      "name": "Auth - 4. Get Current User (/api/me)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": { "raw": "{{baseUrl}}/api/me", "host": ["{{baseUrl}}"], "path": ["api", "me"] }
+      }
+    },
+    {
+      "name": "Analytics - 5. Get KPIs",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/kpis?department=&from=&to=",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "kpis"],
+          "query": [
+            { "key": "department", "value": "" },
+            { "key": "from", "value": "" },
+            { "key": "to", "value": "" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Analytics - 6. Get Metrics Trend (12 Months)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/metrics/trend?department=&metric_name=",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "metrics", "trend"],
+          "query": [
+            { "key": "department", "value": "" },
+            { "key": "metric_name", "value": "" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Analytics - 7. Get Metrics by Department (Bar/Pie)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/metrics/by-department?from=&to=",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "metrics", "by-department"],
+          "query": [
+            { "key": "from", "value": "" },
+            { "key": "to", "value": "" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Analytics - 8. Top 5 Metrics Leaderboard",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": { "raw": "{{baseUrl}}/api/metrics/top", "host": ["{{baseUrl}}"], "path": ["api", "metrics", "top"] }
+      }
+    },
+    {
+      "name": "Analytics - 9. Paginated Metrics List (with search & filter)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/metrics?page=1&limit=10&department=&search=",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "metrics"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" },
+            { "key": "department", "value": "" },
+            { "key": "search", "value": "" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Data - 10. Add Single Metric Record",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"department\": \"Sales\",\n  \"metric_name\": \"Q4 Cloud Expansion\",\n  \"metric_value\": 76500.00,\n  \"recorded_on\": \"2026-10-08\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/metrics", "host": ["{{baseUrl}}"], "path": ["api", "metrics"] }
+      }
+    },
+    {
+      "name": "Data - 11. Upload CSV Metrics",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "sample_metrics.csv"
+            }
+          ]
+        },
+        "url": { "raw": "{{baseUrl}}/api/metrics/upload", "host": ["{{baseUrl}}"], "path": ["api", "metrics", "upload"] }
+      }
+    },
+    {
+      "name": "Activity - 12. Get Live Activity Log (Admin/Analyst)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": { "raw": "{{baseUrl}}/api/activity", "host": ["{{baseUrl}}"], "path": ["api", "activity"] }
+      }
+    },
+    {
+      "name": "Data - 13. Delete Metric Record",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": { "raw": "{{baseUrl}}/api/metrics/1", "host": ["{{baseUrl}}"], "path": ["api", "metrics", "1"] }
+      }
+    }
+  ]
+}

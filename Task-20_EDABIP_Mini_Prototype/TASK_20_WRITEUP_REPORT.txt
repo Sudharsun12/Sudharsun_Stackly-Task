@@ -1,0 +1,385 @@
+================================================================================
+EDABIP MINI PROTOTYPE — CAPSTONE TASK 20 REPORT & WRITE-UP
+Enterprise Data Analytics & Business Intelligence Dashboard
+Platform: React (Vite) + Flask + MySQL 8.0 + Socket.IO (WebSockets)
+Author: Yashaswini K (Associate Software Engineer)
+Submission Date: October 9, 2026
+================================================================================
+
+TABLE OF CONTENTS:
+1. Executive Summary & Implementation Overview
+2. System Architecture & Component Design
+3. Key Technical Challenges Faced & How They Were Solved
+4. Mandatory Capstone Write-up Questions & Answers
+   - Q1: Hardest Part to Connect Together Across 12+ Tasks
+   - Q2: End-to-End Trace of the CSV Upload Pipeline
+   - Q3: End-to-End Trace of the Real-Time WebSocket Activity Feed
+   - Q4: The Architectural Concept that Changed Software Mindset the Most
+5. Verification, Credentials & Postman Test Results
+
+================================================================================
+1. EXECUTIVE SUMMARY & IMPLEMENTATION OVERVIEW
+================================================================================
+
+EDABIP (Enterprise Data Analytics and Business Intelligence Platform) Mini
+Prototype is a full-stack, multi-tenant analytics dashboard designed to ingest,
+aggregate, and visualize operational and financial metrics across company
+departments (Sales, Marketing, HR, Finance, Operations) in real time.
+
+The implementation consists of three integrated layers:
+
+1. DATABASE LAYER (MySQL 8.0 on 127.0.0.1:3306):
+   - Database name: edabip_mini
+   - 4 relational tables:
+     * users: Stores user identity, bcrypt hashed passwords, role (admin,
+       analyst, viewer), avatar file paths, and timestamps.
+     * departments: Stores department master categories (Sales, Marketing,
+       HR, Finance, Operations).
+     * metrics: Stores discrete time-series metric entries with foreign key
+       references to departments and user uploaders, DECIMAL(15,2) precision,
+       and recorded_on dates.
+     * ctivity_log: Immutable append-only audit trail capturing user ID,
+       action descriptions, and precise timestamps.
+   - Initial Seeding:
+     * 3 role accounts (Admin, Analyst, Viewer) pre-populated with bcrypt hashes.
+     * 300+ historical metric records across all 5 departments covering a
+       rolling 12-month window.
+
+2. BACKEND LAYER (Python 3.14 + Flask + Eventlet + Socket.IO):
+   - RESTful API with Flask-JWT-Extended providing role-gated endpoints:
+     * Authentication: POST /api/register, POST /api/login, GET /api/me,
+       PUT /api/me, POST /api/me/avatar.
+     * Analytics & Aggregation: GET /api/kpis, GET /api/metrics/trend,
+       GET /api/metrics/by-department, GET /api/metrics/top, and paginated
+       GET /api/metrics with dynamic SQL filtering and debounced search.
+     * Data Mutation: POST /api/metrics (single insert), POST /api/metrics/upload
+       (bulk CSV ingestion), and DELETE /api/metrics/<id>.
+     * Real-time Broadcasting: Every mutation writes to MySQL, generates an
+       activity_log record, and emits an ctivity_update payload via
+       Flask-SocketIO to all connected WebSocket clients.
+
+3. FRONTEND LAYER (React 18 + Vite + Recharts + Lucide Icons):
+   - Architecture based on Context API and modular custom hooks:
+     * Contexts: AuthContext (JWT management & session hydration),
+       ThemeContext (instant Dark/Light mode toggle with persistence),
+       SocketContext (WebSocket listener & notification badge state).
+     * Custom Hooks: useForm (controlled form state and validation),
+       useToast (global non-blocking notifications), useDebounce (search throttling).
+     * Pages:
+       - /login: Clean login with 1-click test role credentials switcher.
+       - /dashboard: Interactive top filter bar, 4 live KPI cards (with Month-
+         on-Month comparison), 12-month Area trend chart, Department Bar chart,
+         Proportional Pie share chart, Top 5 metrics leaderboard, and Live
+         WebSocket Activity sidebar.
+       - /data: Multi-step data ingestion page restricted to Admin & Analyst
+         roles (viewers receive a 403 Forbidden screen). Includes single record
+         form, CSV bulk upload with live 5-row preview, paginated data table
+         with search and export to CSV.
+       - /profile: Self-service profile management for name, password, and avatar.
+
+================================================================================
+2. SYSTEM ARCHITECTURE & COMPONENT DESIGN
+================================================================================
+
+DATA FLOW PIPELINE:
+[Browser UI] <---> [React Vite (5173)]
+                         |
+           REST (Axios)  |  WebSocket (Socket.IO)
+                         v
+                [Flask App (5000)]
+                   /           \
+     [Eventlet SocketIO]     [mysql-connector-python]
+                                       |
+                             [MySQL 8.0 (3306)]
+                             (edabip_mini Schema)
+
+ROLE PERMISSION MATRIX:
+-----------------------------------------------------------------------------
+Action                     Admin           Analyst         Viewer
+-----------------------------------------------------------------------------
+View Dashboard & Charts    Allowed         Allowed         Allowed
+Change Theme / Profile     Allowed         Allowed         Allowed
+Add Single Metric          Allowed         Allowed         Forbidden (403)
+Bulk Upload CSV            Allowed         Allowed         Forbidden (403)
+Access /data Route         Allowed         Allowed         Forbidden (403)
+Delete Metric Record       Allowed         Forbidden (403) Forbidden (403)
+View Full Audit Trail      Allowed         Forbidden (403) Forbidden (403)
+-----------------------------------------------------------------------------
+
+================================================================================
+3. KEY TECHNICAL CHALLENGES FACED & HOW THEY WERE SOLVED
+================================================================================
+
+CHALLENGE 1: Synchronizing WebSocket Events with Filtered Dashboard State
+-------------------------------------------------------------------------
+- Problem:
+  When an Analyst uploads a CSV on the /data page, the backend commits rows
+  and emits a WebSocket event. In the frontend, the Dashboard needed to
+  reflect the new numbers without wiping out user-selected filters (such as
+  specific departments or custom date ranges). Naively triggering a full page
+  reload would destroy component state, active tabs, and UX continuity.
+- Solution:
+  Implemented an event-driven subscriber inside SocketContext. When an
+  ctivity_update payload arrives over WebSocket, SocketContext updates its
+  shared activity array. The Dashboard component sets up an effect hook
+  monitoring this activity stream. When triggered, it re-queries the analytics
+  endpoints passing the *current* filter parameters preserved in state, updating
+  the KPI cards and Recharts animations smoothly without losing user context.
+
+CHALLENGE 2: Robust CSV Parsing with UTF-8 BOM & Inconsistent Line Breaks
+------------------------------------------------------------------------
+- Problem:
+  Spreadsheet programs (like Microsoft Excel) often export CSV files containing
+  a UTF-8 Byte Order Mark (BOM: \uFEFF) at the start of the file or use Windows-
+  style CRLF (\r\n) line terminators. When reading the first header department,
+  standard string matching in Python or JavaScript would fail with errors like
+  "KeyError: '\ufeffdepartment'".
+- Solution:
+  In the Flask backend (POST /api/metrics/upload), the incoming stream is
+  decoded using "utf-8-sig", which automatically detects and removes the BOM.
+  On the React frontend previewer, the FileReader splits input lines using
+  the regex /\r\n|\n/ and trims every cell value. This ensures 100% reliable
+  column extraction whether the user uploads from Windows, macOS, or Linux.
+
+CHALLENGE 3: Seamless Dual-Theme Integration across SVG Recharts Components
+---------------------------------------------------------------------------
+- Problem:
+  CSS custom variables applied to standard DOM elements do not automatically
+  cascade into SVG <text>, <path>, and Cartesian grid lines inside Recharts
+  charts. When switching between Dark Mode and Light Mode, chart axes, grids,
+  and tooltips became unreadable or clashed with contrasting backgrounds.
+- Solution:
+  Configured a unified CSS variable palette on :root and html.dark (e.g.,
+  --border-color, --text-secondary, --bg-surface), and wired Recharts
+  subcomponents to consume these CSS variables directly in their stroke, fill,
+  and tickFormatter attributes. Recharts tooltips were given custom React
+  wrapper components that inherit CSS variables dynamically.
+
+CHALLENGE 4: MySQL DECIMAL & Date Serialization across JSON Boundaries
+----------------------------------------------------------------------
+- Problem:
+  Python's built-in json serializer and Flask's jsonify() raise TypeError:
+  Object of type Decimal is not JSON serializable when handling MySQL
+  DECIMAL(15,2) and datetime.date objects.
+- Solution:
+  All mathematical aggregations in SQL queries use ROUND(..., 2) or
+  COALESCE(..., 0) and cast directly to Python loat() or ISO strings in
+  the route handlers before generating JSON responses. Dates are converted
+  via .isoformat() so the frontend JavaScript Date constructors receive
+  standardized ISO-8601 strings.
+
+================================================================================
+4. MANDATORY CAPSTONE WRITE-UP QUESTIONS & ANSWERS
+================================================================================
+
+--------------------------------------------------------------------------------
+QUESTION 1:
+This task combines skills from 12+ tasks. Which part was hardest to connect
+together and why?
+--------------------------------------------------------------------------------
+ANSWER:
+The most complex part of the architecture was bridging the asynchronous lifecycle
+between the real-time WebSocket layer (Flask-SocketIO + socket.io-client) and
+the stateful, filtered Recharts dashboard.
+
+Unlike standard CRUD apps where a user initiates a request and directly awaits
+a response in the same component, this system required decoupled, cross-user,
+cross-view synchronization:
+1. When User A (an Analyst) uploads 50 records in the /data route, that write
+   originates on a different page.
+2. The server finishes the batch insert, logs the action in MySQL, and broadcasts
+   the event over a global WebSocket channel.
+3. User B (an Admin) watching /dashboard in another browser or tab must
+   receive this notification instantly, see the bell badge increment, have the
+   activity feed item slide in, AND see the 4 KPI cards and 4 Recharts visualisations
+   recalculate their aggregated totals.
+4. Crucially, this recalculation had to respect whatever department and date
+   range filters User B had active at that exact moment.
+
+Wiring this together required centralizing the Socket connection inside a dedicated
+SocketContext provider at the root of the React tree, building a notification
+event bus, and utilizing useEffect dependencies on the Dashboard that listen
+both to local filter changes and background activity pulses without triggering
+unwanted infinite re-fetch loops.
+
+--------------------------------------------------------------------------------
+QUESTION 2:
+How does your CSV upload work end to end? From the file input to the database
+insert — explain every step in order.
+--------------------------------------------------------------------------------
+ANSWER:
+The CSV upload workflow executes across the following sequential stages:
+
+Step 1 — Client File Selection & Validation:
+  The user drops or selects a .csv file in DataManagement.jsx. An onChange
+  handler verifies the .csv file extension. If invalid, a red toast alerts
+  the user.
+
+Step 2 — Client-Side Instant Preview (FileReader API):
+  Before making any network request, an in-memory FileReader instance reads
+  the file as text. It strips empty lines, splits headers by comma, extracts
+  the first 5 data rows, and renders an interactive preview table on the screen.
+  This allows the user to visually confirm column mapping (department,
+  metric_name, metric_value, ecorded_on) before committing.
+
+Step 3 — HTTP POST Multipart Request:
+  When the user clicks "Upload All Records", the browser packages the file into
+  a standard FormData object. The request is dispatched via Axios to
+  POST /api/metrics/upload with the Authorization: Bearer <token> JWT header.
+
+Step 4 — Backend Authentication & Role Check:
+  The Flask route is guarded by @roles_required("admin", "analyst"). Flask
+  validates the JWT identity; if the user has the 'viewer' role, the server
+  immediately aborts with an HTTP 403 Forbidden.
+
+Step 5 — Server-Side Stream Parsing & Validation:
+  Flask extracts the file from equest.files["file"]. The byte stream is
+  decoded using "utf-8-sig" (to remove any Excel BOM) and wrapped in
+  io.StringIO. Python's csv.DictReader iterates over each row:
+  - Department names are mapped to foreign key IDs using a dictionary cache
+    queried from the departments table.
+  - Numbers are parsed as floating-point decimals.
+  - Dates are checked for valid format.
+
+Step 6 — Database Batch Commit & Audit Logging:
+  Valid rows are inserted into the metrics table via parameterized SQL statements.
+  Upon completing the batch, Flask writes a new entry into ctivity_log
+  specifying the user's name and the exact number of records ingested. Both
+  operations are committed inside the database transaction.
+
+Step 7 — Real-Time WebSocket Emission:
+  Flask invokes socketio.emit("activity_update", payload) sending the newly
+  created activity log record to all connected clients.
+
+Step 8 — Response & Client UI Update:
+  Flask responds with HTTP 201 Created and JSON payload:
+  {"message": "X records uploaded successfully.", "inserted": X}.
+  The frontend fires a green toast notification, clears the preview table,
+  and triggers an immediate refresh of the master records table.
+
+--------------------------------------------------------------------------------
+QUESTION 3:
+How does the activity feed update in real time? Trace the full path: a user
+uploads a CSV → what happens in the backend → what happens in the frontend.
+--------------------------------------------------------------------------------
+ANSWER:
+Here is the step-by-step trace of the real-time event pipeline:
+
+1. User Action in Browser:
+   User clicks "Upload All" with a valid CSV file on the /data page.
+
+2. Backend Database Operations (pp.py):
+   - The CSV is processed and metric records are written into the metrics table.
+   - The helper function log_activity(db, cur, user_id, action) is invoked.
+   - It executes:
+     INSERT INTO activity_log (user_id, action) VALUES (%s, %s)
+   - The transaction commits to MySQL.
+
+3. Backend WebSocket Emission:
+   - Flask queries the newly inserted log record joined with the users table
+     to obtain the uploader's display name.
+   - It constructs the event payload:
+     {
+       "id": 14,
+       "action": "Analyst User uploaded CSV with 6 records.",
+       "user_name": "Analyst User",
+       "created_at": "2026-10-09T15:10:00"
+     }
+   - Flask calls socketio.emit("activity_update", payload) over the active
+     Socket.IO namespace.
+
+4. Network WebSocket Transport:
+   The Socket.IO server pushes the binary WebSocket frame across the open
+   persistent TCP connection to every connected browser client.
+
+5. Frontend WebSocket Reception (SocketContext.jsx):
+   - In the browser, the client-side socket.on("activity_update", (data) => ...)
+     listener intercepts the incoming event.
+   - It updates React state by prepending the new item to the ctivities array:
+     setActivities(prev => [data, ...prev.slice(0, 19)])
+   - It increments the unreadCount badge state.
+
+6. Reactive Component Rendering:
+   - NotificationBell.jsx: The red badge counter increments (e.g. "1"), showing
+     an unread indicator.
+   - ActivityFeed.jsx: The new action entry appears at the very top of the feed
+     with an upload icon, user badge, and dynamic "just now" timestamp without
+     any browser refresh.
+   - Dashboard.jsx: Senses the activity update and re-triggers etchData(),
+     causing KPI cards (Total Value, Total Records) to refresh with the newly
+     ingested values.
+
+--------------------------------------------------------------------------------
+QUESTION 4:
+Looking back across all 20 tasks, which concept changed how you think about
+building software the most? Be specific.
+--------------------------------------------------------------------------------
+ANSWER:
+The single concept that fundamentally transformed my approach to software
+engineering is:
+"Decoupled, Single-Source-of-Truth Architecture with Unidirectional Data Flow."
+
+In early development tasks, software is often built with tight coupling: components
+fetch their own isolated data, state is passed down through deep prop drilling,
+and components attempt to synchronize with each other through messy callbacks.
+This quickly leads to "state desynchronization bugs" — where updating data in
+one tab or component leaves another part of the UI showing stale or conflicting
+information.
+
+Working through Tasks 9 through 20 demonstrated how modern enterprise applications
+solve this:
+1. State is lifted into scoped, purpose-driven providers (Context API for Auth,
+   Theme, and WebSockets).
+2. Business logic and side effects are encapsulated into reusable custom hooks
+   (useForm, useToast, useDebounce), ensuring UI components remain purely
+   declarative visual representations.
+3. The backend is designed around stateless REST APIs for predictable data
+   fetching, secured via cryptographic JWTs, while asynchronous mutations are
+   broadcast through event-driven WebSockets.
+
+This architectural shift means you no longer think about "how does component A
+tell component B to update?". Instead, you design a unidirectional pipeline:
+Actions trigger database mutations -> Mutations emit domain events -> State
+contexts absorb events -> UI components automatically re-render as a pure
+function of that state. This produces code that is modular, maintainable, and
+resilient to scale.
+
+================================================================================
+5. VERIFICATION, CREDENTIALS & POSTMAN TEST RESULTS
+================================================================================
+
+TEST USER CREDENTIALS:
+- All users password: password123
+- Admin:   admin@edabip.com   (Full access + Delete + Audit logs)
+- Analyst: analyst@edabip.com (Data entry + CSV upload + Charts)
+- Viewer:  viewer@edabip.com  (Read-only dashboard, /data locked with 403)
+
+AUTOMATED TEST SUITE:
+- Executed ackend/test_endpoints.py against live MySQL server:
+  * 13 tests ran in 1.343s -> Result: 13 PASSED, 0 FAILED.
+  * Tested: Admin login, Viewer login, Token authentication, KPI calculations,
+    Trend aggregations, Department distribution, Paginated records,
+    Single manual metric insert, CSV bulk upload, Activity logging,
+    Admin delete permissions, and Viewer role 403 enforcement.
+
+VITE FRONTEND BUILD:
+- Executed 
+pm run build in rontend/:
+  * 2,500 modules transformed.
+  * Production bundle compiled in 22.5s with zero syntax or linting errors.
+
+POSTMAN COLLECTION:
+- Pre-configured Postman collection exported to:
+  E:\edabip-mini\postman_collection.json
+- Includes pre-request scripts that automatically extract JWT tokens on login
+  and inject them into {{token}} headers for all 13 requests.
+- Sample upload dataset provided at:
+  E:\edabip-mini\sample_metrics.csv
+
+GIT REPOSITORY:
+- Fully initialized Git repository on branch master at E:\edabip-mini\.git.
+- Clean commit history containing all 41 source and configuration files.
+
+================================================================================
+END OF REPORT
+================================================================================

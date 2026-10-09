@@ -1,0 +1,8 @@
+flask
+flask-jwt-extended
+flask-bcrypt
+flask-cors
+flask-socketio
+eventlet
+mysql-connector-python
+python-dotenv
