@@ -1,0 +1,515 @@
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TASK 21 — INTRODUCTION TO TYPESCRIPT IN REACT
+   Personal Expense Tracker — TypeScript Edition
+   Developed by : Sudharsun A
+   Deadline     : 16th October 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 1 — PROJECT OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This project is a Personal Expense Tracker built entirely in
+TypeScript using React and Vite. It is a rebuild of Task 5
+(JavaScript version) with full static typing, typed props,
+typed events, typed hooks, and a typed context system.
+
+Tech Stack:
+  - React 18
+  - TypeScript (strict mode)
+  - Vite 8 (with rolldown bundler)
+  - Axios (for typed API calls)
+  - localStorage (for data persistence)
+  - CSS custom properties (light/dark theme)
+
+All source files use .tsx (components) or .ts (hooks/types).
+Zero .js or .jsx files exist in the src/ folder.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 2 — IMPLEMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FOLDER STRUCTURE
+────────────────
+  src/
+  ├── types/
+  │   └── index.ts          ← All interfaces & union types
+  ├── context/
+  │   └── ThemeContext.tsx  ← Typed dark/light mode context
+  ├── hooks/
+  │   ├── useLocalStorage.ts ← Generic <T> hook
+  │   ├── useForm.ts         ← Typed form state
+  │   └── useToast.ts        ← Typed toast notifications
+  ├── components/
+  │   ├── ExpenseForm.tsx    ← Typed event handlers
+  │   ├── ExpenseCard.tsx    ← Typed props + Record<>
+  │   ├── ExpenseList.tsx    ← Typed Expense[] rendering
+  │   ├── FilterBar.tsx      ← Union type filters
+  │   ├── SummaryStats.tsx   ← Typed utility functions
+  │   └── ToastContainer.tsx ← Typed Toast[]
+  ├── App.tsx               ← Root, CRUD, filter logic
+  └── main.tsx              ← Entry point
+
+FEATURES IMPLEMENTED
+─────────────────────
+  ✔  Add expense (title, amount, category, date, note)
+  ✔  Display all expenses as cards
+  ✔  Edit an expense (pre-filled form)
+  ✔  Delete an expense
+  ✔  Filter by category (Food, Transport, Shopping, etc.)
+  ✔  Filter by time period (All / This Week / This Month)
+  ✔  Summary stats (Total Spent, Highest Expense,
+       Top Category, Total Entries)
+  ✔  Persist to localStorage (data survives refresh)
+  ✔  Dark mode using ThemeContext
+  ✔  Toast notifications (success, error, info)
+  ✔  Centered header with motivational quote
+  ✔  Footer with developer name and copyright
+
+localStorage IMPLEMENTATION
+────────────────────────────
+  Data is stored in the browser's localStorage under the
+  key "expenses". The generic hook useLocalStorage<T> handles
+  both reading on page load and writing on every change.
+
+  On page load:
+    → localStorage.getItem('expenses') is called
+    → JSON.parse converts string back to Expense[]
+    → App renders with saved data
+
+  On every add/edit/delete:
+    → setExpenses(newList) is called
+    → Hook runs localStorage.setItem('expenses', JSON.stringify(newList))
+    → Data is saved permanently in the browser
+
+  To verify: Open DevTools → Application → Local Storage
+  → http://localhost:5173 → Key: "expenses"
+
+TypeScript CONCEPTS USED
+─────────────────────────
+  1. Primitive types      → string, number, boolean
+  2. Interfaces           → Expense, Toast, ThemeContextType
+  3. Union types          → Category, FilterType
+  4. Optional property ?  → note? in Expense interface
+  5. Typed useState       → useState<Expense | null>(null)
+  6. Typed events         → React.ChangeEvent<HTMLInputElement>
+  7. Typed functions      → explicit parameter & return types
+  8. Generics <T>         → useLocalStorage<T>, ApiResponse<T>
+  9. Partial<T>           → loadForm(data: Partial<ExpenseFormState>)
+  10. keyof               → setField(field: keyof ExpenseFormState)
+  11. Record<K, V>        → Record<Category, string> for color map
+  12. import type         → type-only imports for Vite 8 compatibility
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 3 — WRITEUP QUESTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+QUESTION 1:
+What is the difference between an interface and a type in
+TypeScript? When do you use each?
+──────────────────────────────────────────────────────────────
+ANSWER:
+
+Both interface and type are used to describe the shape of
+data in TypeScript, but they differ in how they work and
+when they are most appropriate.
+
+INTERFACE:
+  An interface defines the shape of an object. It is
+  specifically designed for describing objects and classes.
+  Interfaces can be extended (inherited) and can be
+  "merged" — if you declare the same interface twice,
+  TypeScript automatically merges them.
+
+  Example from this project (src/types/index.ts):
+
+    interface Expense {
+      id: number
+      title: string
+      amount: number
+      category: Category
+      date: string
+      note?: string
+    }
+
+  We use interface for Expense, Toast, ThemeContextType,
+  ApiResponse<T> — all object shapes.
+
+TYPE:
+  A type alias is more flexible. It can describe not just
+  objects, but also union types, primitive types, tuples,
+  and function signatures.
+
+  Example from this project:
+
+    type Category = 'Food' | 'Transport' | 'Shopping' |
+                    'Health' | 'Education' | 'Other'
+
+    type FilterType = 'all' | 'week' | 'month'
+
+  We use type for union types — values that can only be
+  one of a specific set of strings.
+
+WHEN TO USE EACH:
+  → Use interface when describing an object shape, especially
+    if it may be extended or implemented by a class.
+  → Use type when creating union types, intersection types,
+    or aliasing primitives and non-object structures.
+
+In this project:
+  interface → Expense, Toast, ThemeContextType, ApiResponse<T>
+  type      → Category, FilterType
+
+
+──────────────────────────────────────────────────────────────
+QUESTION 2:
+What does the ? symbol mean in an interface property?
+Give an example from your code.
+──────────────────────────────────────────────────────────────
+ANSWER:
+
+The ? symbol makes a property OPTIONAL in an interface.
+It means that property may or may not be present in the
+object — TypeScript will not complain if it is missing.
+
+Without ?:  Property is REQUIRED — must always be provided.
+With ?:     Property is OPTIONAL — can be skipped.
+
+Example from this project (src/types/index.ts):
+
+  interface Expense {
+    id: number       ← required
+    title: string    ← required
+    amount: number   ← required
+    category: Category ← required
+    date: string     ← required
+    note?: string    ← OPTIONAL — user may leave it blank
+  }
+
+The note field is optional because not every expense needs
+a note. A user might add "Lunch" without any extra detail.
+
+This means both of these are valid Expense objects:
+
+  // Without note — valid ✔
+  { id: 1, title: 'Lunch', amount: 150,
+    category: 'Food', date: '2026-10-16' }
+
+  // With note — also valid ✔
+  { id: 2, title: 'Bus', amount: 30,
+    category: 'Transport', date: '2026-10-16',
+    note: 'Office commute' }
+
+In ExpenseCard.tsx, we check before rendering the note:
+
+  {expense.note && (
+    <span className="expense-note">📝 {expense.note}</span>
+  )}
+
+This guards against the case where note is undefined.
+TypeScript enforces this check — without it, you would get
+a type warning.
+
+
+──────────────────────────────────────────────────────────────
+QUESTION 3:
+What is a generic in TypeScript? Explain useLocalStorage<T>
+in your own words — what does <T> do?
+──────────────────────────────────────────────────────────────
+ANSWER:
+
+A GENERIC in TypeScript is a way to write reusable code
+that works with any type, while still being fully type-safe.
+Think of it like a placeholder for a type that you fill in
+when you actually use the function.
+
+The <T> syntax means: "I don't know the exact type yet —
+the caller will tell me what it is when they use this."
+
+WHY GENERICS MATTER:
+  Without generics, you would need a separate function for
+  every type:
+    useStringLocalStorage()
+    useNumberLocalStorage()
+    useExpenseArrayLocalStorage()
+    ...
+
+  With generics, one function handles ALL of them.
+
+OUR useLocalStorage<T> HOOK (src/hooks/useLocalStorage.ts):
+
+  function useLocalStorage<T>(
+    key: string,
+    initialValue: T
+  ): [T, (value: T) => void] {
+    ...
+  }
+
+  → <T> is the generic parameter
+  → T is used as the type of initialValue
+  → T is used as the type of the returned state
+  → T is used as the type of the setter parameter
+
+HOW IT WORKS IN App.tsx:
+
+  const [expenses, setExpenses] =
+    useLocalStorage<Expense[]>('expenses', [])
+    //              ↑
+    //   T = Expense[]
+    //   TypeScript now knows:
+    //     expenses    : Expense[]
+    //     setExpenses : (value: Expense[]) => void
+
+  If we used it for a boolean:
+    useLocalStorage<boolean>('darkMode', false)
+    //   T = boolean
+    //   stored : boolean
+    //   setValue: (value: boolean) => void
+
+The same hook works perfectly for both cases.
+TypeScript infers and enforces the correct type everywhere
+the hook's return values are used.
+
+In my own words:
+  <T> is like a "type variable". When I call the hook with
+  <Expense[]>, TypeScript replaces every T in the function
+  with Expense[]. It guarantees that whatever goes in
+  (setExpenses) and whatever comes out (expenses) is always
+  the exact same type — Expense[].
+
+
+──────────────────────────────────────────────────────────────
+QUESTION 4:
+Give one real example from your code where TypeScript caught
+an error that JavaScript would have silently missed.
+What was the error and what did TypeScript show you?
+──────────────────────────────────────────────────────────────
+ANSWER:
+
+REAL EXAMPLE — Wrong category value:
+
+In src/types/index.ts, Category is defined as:
+
+  type Category =
+    'Food' | 'Transport' | 'Shopping' |
+    'Health' | 'Education' | 'Other'
+
+In ExpenseCard.tsx, I created a Record<Category, string>
+to map each category to a colour:
+
+  const categoryColors: Record<Category, string> = {
+    Food: '#ef4444',
+    Transport: '#3b82f6',
+    Shopping: '#8b5cf6',
+    Health: '#10b981',
+    Education: '#f59e0b',
+    Other: '#6b7280',
+  }
+
+If I had accidentally written a wrong category name:
+
+  const categoryColors: Record<Category, string> = {
+    Food: '#ef4444',
+    Travelling: '#3b82f6',   ← TYPO — should be Transport
+    ...
+  }
+
+TypeScript immediately shows this error in VS Code:
+
+  "Object literal may only specify known properties,
+  and 'Travelling' does not exist in type
+  'Record<Category, string>'"
+
+In JavaScript, this would silently succeed — the map would
+just have a 'Travelling' key that never matches any expense
+category. The Transport category expenses would show no
+colour, and there would be no error message anywhere.
+The bug would only appear visually, and you would have no
+idea why.
+
+TypeScript caught it BEFORE the app even ran — red underline
+in VS Code the moment I typed the wrong key.
+
+SECOND EXAMPLE — Wrong prop type:
+
+When passing onDelete to ExpenseCard, TypeScript enforces:
+
+  onDelete: (id: number) => void
+
+If I had tried to call it like this in ExpenseList:
+
+  <ExpenseCard onDelete={(id) => onDelete(String(id))} />
+  //                                      ↑
+  //                        string not assignable to number
+
+TypeScript would show:
+  "Argument of type 'string' is not assignable to
+   parameter of type 'number'"
+
+In JavaScript, String(id) would silently pass, the delete
+would fail quietly, and the expense would never be removed
+— with no runtime error shown to the developer.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 4 — CHALLENGES FACED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CHALLENGE 1: Vite 8 + Rolldown — MISSING_EXPORT Error
+───────────────────────────────────────────────────────
+Problem:
+  The project used Vite 8, which ships with a new experimental
+  bundler called "rolldown" (replacing the old rollup bundler).
+  Rolldown is stricter about how TypeScript types are imported.
+
+  When we wrote:
+    import { Expense, Category } from '../types'
+
+  Rolldown threw 18 MISSING_EXPORT errors at build time,
+  even though the types were clearly exported in index.ts
+  and tsc --noEmit passed with 0 errors.
+
+Root Cause:
+  Rolldown requires type-only imports to be explicitly marked
+  with the "import type" keyword so it can safely strip them
+  during bundling without treating them as runtime values.
+
+Fix Applied:
+  Changed all type-only imports across 7 files from:
+    import { Expense } from '../types'
+  To:
+    import type { Expense } from '../types'
+
+  This tells rolldown: "This import is only used for
+  TypeScript type checking — do not include it in the bundle."
+
+Lesson Learned:
+  Always use "import type" for TypeScript interfaces, types,
+  and enums that are only used for type annotations and not
+  as runtime values. This is best practice in any modern
+  TypeScript + Vite project.
+
+
+CHALLENGE 2: ThemeContext — Gradient CSS Variable
+──────────────────────────────────────────────────
+Problem:
+  When we changed the header background to a CSS gradient:
+    --header-bg: linear-gradient(135deg, #0f766e, #06b6d4)
+
+  The CSS variable stores the gradient string, but it only
+  works when used with "background" not "background-color".
+
+Fix Applied:
+  The .app-header uses "background: var(--header-bg)" which
+  correctly applies both solid colors and gradients.
+
+
+CHALLENGE 3: Port Already in Use
+──────────────────────────────────
+Problem:
+  When the dev server was restarted, port 5173 was already
+  occupied by a previous server session. Vite automatically
+  moved to port 5174, causing confusion when the user opened
+  localhost:5173 and saw a blank or old page.
+
+Fix:
+  Always stop the existing server (Ctrl+C) before running
+  npm run dev again. Vite will always use 5173 if it is free.
+
+
+CHALLENGE 4: Typing Optional Props in useEffect
+─────────────────────────────────────────────────
+Problem:
+  In ExpenseForm.tsx, the editTarget prop is typed as
+  Expense | null. Inside the useEffect that pre-fills the
+  form when editing, TypeScript required us to guard against
+  null before accessing editTarget's properties.
+
+  Without the guard:
+    loadForm({ title: editTarget.title })
+    → Error: Object is possibly null
+
+Fix Applied:
+  if (editTarget) {
+    loadForm({ title: editTarget.title, ... })
+  } else {
+    resetForm()
+  }
+
+  TypeScript "narrows" the type inside the if block —
+  it knows editTarget is Expense (not null) there.
+
+Lesson Learned:
+  Union types with null force you to handle the null case
+  explicitly. This is exactly what TypeScript is designed
+  to do — prevent null reference errors that crash apps.
+
+
+CHALLENGE 5: Partial<T> in useForm Hook
+─────────────────────────────────────────
+Problem:
+  When loading an existing expense into the edit form,
+  we only wanted to set some fields, not all of them.
+  Using the full ExpenseFormState type would require all
+  fields to be provided.
+
+Fix Applied:
+  Used Partial<ExpenseFormState> for the loadForm parameter:
+
+    const loadForm = (data: Partial<ExpenseFormState>): void => {
+      setForm((prev) => ({ ...prev, ...data }))
+    }
+
+  Partial<T> makes every field in T optional — so we can
+  pass only the fields we want to update.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 5 — KEY LEARNINGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. TypeScript is NOT a new language — it is JavaScript
+   with types added on top. Every JS concept works the same.
+
+2. Centralising all types in src/types/index.ts makes the
+   codebase self-documenting. Any developer can understand
+   the data shapes without reading the full component code.
+
+3. Generics (<T>) make hooks reusable without sacrificing
+   type safety. useLocalStorage<T> is the best example —
+   one hook, any type, fully safe.
+
+4. "import type" is mandatory in Vite 8 + rolldown for
+   type-only imports. This is best practice going forward.
+
+5. Union types (Category, FilterType) eliminate entire
+   categories of bugs — invalid values are caught at
+   compile time, not at runtime in front of users.
+
+6. The "Expense | null" pattern for optional state is
+   cleaner than using undefined. TypeScript forces you to
+   handle both cases explicitly, making the code safer.
+
+7. Never use "any" type — it turns off TypeScript's type
+   checking entirely and defeats the purpose of using TS.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SECTION 6 — HOW TO RUN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. Open VS Code
+  2. Open folder: E:\expense-tracker-ts
+  3. Open terminal (Ctrl + `)
+  4. Run: npm install
+  5. Run: npm run dev
+  6. Open browser: http://localhost:5173/
+
+  To check TypeScript with no errors:
+    npx tsc --noEmit
+
+  To build for production:
+    npm run build
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Developed by : Sudharsun A
+  © 2026 Sudharsun A. All rights reserved.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
