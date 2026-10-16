@@ -706,7 +706,7 @@ def delete_notification(nid):
 # ─── RUN ───────────────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
-    # use_reloader=False is critical — Werkzeug's reloader forks a child process
-    # and Flask-SocketIO routes don't register in the child with threading mode.
-    # This fixes the /socket.io/ 404 error.
-    socketio.run(app, debug=True, port=5000, allow_unsafe_werkzeug=True, use_reloader=False)
+    # In threading mode, Flask-SocketIO patches app.run() via init_app().
+    # Calling app.run() directly ensures the SocketIO WSGI middleware
+    # is active and /socket.io/ returns 200 instead of 404.
+    app.run(host='127.0.0.1', port=5000, threaded=True, use_reloader=False)
