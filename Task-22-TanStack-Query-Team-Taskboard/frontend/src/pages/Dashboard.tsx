@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { BodyNav } from '../components/BodyNav'
 import { StatsPanel } from '../components/StatsPanel'
 import { FilterBar } from '../components/FilterBar'
 import { TaskCard } from '../components/TaskCard'
@@ -42,7 +43,12 @@ export default function Dashboard() {
 
   return (
     <div className="page dashboard-page">
-      {/* Clean, open executive greeting header (no redundant container card) */}
+      {/* Body navigation switcher (Dashboard & Tasks placed right in page body) */}
+      <div className="body-nav-container">
+        <BodyNav />
+      </div>
+
+      {/* Clean, open executive greeting header */}
       <header className="dashboard-header-open">
         <div className="header-meta-row">
           <span className="live-date-pill">📅 {todayFormatted}</span>
@@ -98,29 +104,30 @@ export default function Dashboard() {
         {isError && (
           <div className="state-box state-error">
             <p>Could not load tasks: {error.message}</p>
-            <button className="btn btn-sm" onClick={() => refetch()}>
-              Retry
+            <button className="btn btn-ghost" onClick={() => refetch()}>
+              Retry Fetch
             </button>
           </div>
         )}
 
         {data && (
-          data.items.length === 0 ? (
-            <div className="state-box empty-clean-state">
-              <span className="empty-icon">📂</span>
-              <h3>No tasks found</h3>
-              <p>No tasks match the selected filters. Add a new task to get started.</p>
-              <button className="btn btn-sm" onClick={() => setFormOpen(true)}>
-                + Create First Task
-              </button>
-            </div>
-          ) : (
-            <ul className="task-list">
-              {data.items.map((t) => (
-                <TaskCard key={t.id} task={t} onEdit={handleEdit} />
-              ))}
-            </ul>
-          )
+          <>
+            {data.items.length === 0 ? (
+              <div className="empty-clean-state">
+                <span className="empty-icon" aria-hidden="true">📋</span>
+                <p>No recent tasks match the current filter.</p>
+                <button className="btn btn-ghost btn-sm" onClick={() => { setStatus(''); setPriority('') }}>
+                  Clear filters
+                </button>
+              </div>
+            ) : (
+              <ul className="task-list">
+                {data.items.map((task) => (
+                  <TaskCard key={task.id} task={task} onEdit={handleEdit} />
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </section>
 

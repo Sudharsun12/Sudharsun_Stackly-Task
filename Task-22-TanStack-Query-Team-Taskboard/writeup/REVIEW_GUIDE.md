@@ -11,13 +11,15 @@
 
 | Area | Previous State | New Enhanced Implementation | Reason / Benefit |
 | :--- | :--- | :--- | :--- |
-| **Theme System** | Hardcoded dark nav, basic dark mode, only toggled from inside dashboard navbar | Global `ThemeProvider` (`ThemeContext.tsx`) persisted in `localStorage` + OS system preference fallback | Seamless light/dark transition across the entire app |
-| **Pre-Login Theme Toggle** | Not available before logging in | Interactive Theme Switcher added to the pre-auth header on `LoginPage.tsx` | Allows users to choose light/dark theme before sign in |
-| **Navbar Styling** | Fixed dark navy (`--ink`) background regardless of theme | Dynamic CSS variables (`--nav-bg`, `--nav-border`, `--nav-text`, `--nav-quote-bg`) reacting instantly to theme switch | Clean, frosted-glass header matching the chosen color mode |
-| **Footer Component** | Cluttered multi-column footer with EDABIP internship tags and mentor links | Strict, minimal, professional bar: `Developed by Sudharsun A · Software Engineer • © 2026 All Rights Reserved` | Clean corporate polish adhering strictly to requirements |
-| **Dashboard Layout** | Heavy nested container cards wrapping greeting, filters, and boards | Open executive layout removing outer card wrappers; only 4 essential KPI metric cards retained | Eliminates visual noise, emphasizes high-priority task data |
-| **KPI Metrics** | 6 cluttered, repetitive stat tiles | 4 essential KPI cards: Workload, Completed %, Overdue Alerts, Weekly Closed with live polling indicator | High-signal metrics for fast executive scanning |
-| **Database Connection** | Blank default password | Configured for `127.0.0.1:3306`, user `root`, password `Srisudhan@1223`, database `task_manager` | Zero-configuration plug-and-play local execution in VS Code |
+| **Header (Navbar) Title** | Brand placed on the left side alongside nav links | **Centered "Team Task Board"** in the top navbar via 3-column CSS Grid (`1fr auto 1fr`) | Clean symmetry, making the board brand the primary focal point of the header |
+| **Dashboard & Tasks Navigation** | Links were embedded inside the top sticky navbar | Moved **into the body page** as dedicated view switcher tabs (`BodyNav.tsx`) | Keeps the top header uncluttered and places view navigation right where the user works |
+| **Status & Priority Badges** | Badges lacked explicit spacing and collided/overlapped on rows | Separate flex container with `gap: 0.65rem`, explicit padding, rounded pills, and distinct light/dark color tokens | Completely eliminates visual collision; badges render with clear separation |
+| **Search & Filter Controls** | Search input and 3 dropdowns (Status, Priority, Assignee) were cramped without clear structure | Dedicated `.filter-bar` flex layout with `gap: 1.25rem`, labeled selects, dedicated search icon, and balanced widths | Generous spacing, professional input borders, and responsive stacking on mobile |
+| **Task Pagination** | Pagination bar was left-aligned or centered | **Right-aligned** pagination (`.pagination-right`) with clean previous/next buttons and bold page indicator | Standard executive UI layout allowing intuitive right-side table navigation |
+| **KPI Metrics Polling Indicator** | Displayed "Live · Polled every 10s · ..." badge | Removed polling text completely while retaining seamless background caching in TanStack Query | Eliminates distracting ticker text from executive metrics |
+| **Theme System** | Hardcoded dark nav, only toggled from inside dashboard | Global `ThemeProvider` (`ThemeContext.tsx`) persisted in `localStorage` + pre-login switcher on `LoginPage.tsx` | Allows theme toggle before sign-in and across all components |
+| **Minimalist Footer** | Multi-column links with organization tags and quotes | Minimalist single-line footer: `Developed by Sudharsun A · Software Engineer • © 2026 All Rights Reserved` | Strict compliance with professional formatting guidelines |
+| **Database Connection** | Blank default password | Configured for `127.0.0.1:3306`, user `root`, password `Srisudhan@1223`, database `task_manager` | Plug-and-play execution in VS Code |
 
 ---
 
@@ -97,28 +99,18 @@ export const useCreateTask = () => {
 };
 ```
 
-### 4. Smart Hover Prefetching (`src/pages/Dashboard.tsx`)
+### 4. Smart Hover Prefetching (`src/components/TaskCard.tsx`)
 ```typescript
 // Prefetches single task details when user hovers over a task card
-const handleMouseEnter = (taskId: number) => {
+const prefetch = () => {
   queryClient.prefetchQuery({
-    queryKey: taskKeys.detail(taskId),
-    queryFn: () => fetchTaskByIdApi(taskId),
+    queryKey: ['tasks', task.id],
+    queryFn: () => fetchTask(task.id),
     staleTime: 1000 * 30, // 30s
   });
 };
 ```
-*Result:* When the user clicks on the task modal, the data is already in cache—**zero loading spinner (0ms perception delay)**.
-
-### 5. Live Auto-Polling (`src/components/StatsPanel.tsx`)
-```typescript
-const { data: stats, isFetching } = useQuery({
-  queryKey: taskKeys.stats(),
-  queryFn: fetchTaskStatsApi,
-  refetchInterval: 15000, // Background poll every 15 seconds
-  refetchIntervalInBackground: false, // Pauses when tab is hidden
-});
-```
+*Result:* When the user clicks on the task detail, the data is already in cache—**zero loading spinner (0ms perception delay)**.
 
 ---
 
@@ -126,21 +118,21 @@ const { data: stats, isFetching } = useQuery({
 
 ### Q1: What is the difference between `staleTime` and `gcTime` in TanStack Query v5?
 > **Answer:**
-> - `staleTime` determines **how long fetched data is considered fresh**. While data is fresh, TanStack Query returns it directly from cache without triggering any background network requests. When data becomes stale (after `staleTime` expires), it remains visible in the UI, but TanStack Query will automatically trigger a background refetch when the window is refocused or a component mounts.
-> - `gcTime` (Garbage Collection Time, previously called `cacheTime` in v4) defines **how long unused or unmounted query data remains in memory** before being garbage collected. Even if a query is stale, it stays in memory until `gcTime` elapses.
+> - `staleTime` determines **how long fetched data is considered fresh**. While data is fresh, TanStack Query returns it directly from cache without triggering background network requests. When data becomes stale, it remains visible in the UI, but TanStack Query will automatically trigger a background refetch when the window is refocused or a component mounts.
+> - `gcTime` (Garbage Collection Time, previously called `cacheTime` in v4) defines **how long unused or unmounted query data remains in memory** before being garbage collected.
 
 ### Q2: What is the difference between `isLoading` and `isFetching`?
 > **Answer:**
 > - `isLoading` is true **only during the initial fetch** when there is no data in the cache yet (`status === 'pending' && isFetching`).
-> - `isFetching` is true **any time a network request is in flight**, including initial loads, background refetches on window focus, and periodic polling intervals.
+> - `isFetching` is true **any time a network request is in flight**, including initial loads, background refetches on window focus, and background syncs.
 
 ### Q3: Why did we move from `useState + useEffect` to TanStack Query?
 > **Answer:**
-> TanStack Query eliminates ~80% of boilerplate code. It provides out-of-the-box:
+> TanStack Query eliminates boilerplate code. It provides:
 > 1. In-memory caching and automatic deduplication of identical requests.
 > 2. Zero-latency UI via cache hydration and background revalidation (Stale-While-Revalidate).
 > 3. Declarative mutations with `useMutation` and automatic cache synchronization via `queryClient.invalidateQueries`.
-> 4. Window focus refetching and offline network recovery without manual event listeners.
+> 4. Automatic window focus refetching and error retry handling.
 
 ### Q4: How is the Light/Dark theme implemented?
 > **Answer:**

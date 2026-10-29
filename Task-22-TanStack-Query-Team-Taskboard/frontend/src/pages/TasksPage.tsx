@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { BodyNav } from '../components/BodyNav'
 import { FilterBar } from '../components/FilterBar'
 import { Pagination } from '../components/Pagination'
 import { TaskCard } from '../components/TaskCard'
@@ -31,10 +32,20 @@ export default function TasksPage() {
   const closeForm = () => { setFormOpen(false); setEditing(undefined) }
 
   return (
-    <div className="page">
+    <div className="page tasks-page">
+      {/* Body navigation switcher (Dashboard & Tasks placed right in page body) */}
+      <div className="body-nav-container">
+        <BodyNav />
+      </div>
+
       <div className="section-head">
-        <h1>Tasks</h1>
-        <button className="btn" onClick={() => setFormOpen(true)}>Add task</button>
+        <div>
+          <h1>Team Tasks</h1>
+          <p className="section-head-sub">Manage, filter, and track team progress in real time.</p>
+        </div>
+        <button className="btn btn-primary-add" onClick={() => setFormOpen(true)}>
+          <span>＋</span> Add Task
+        </button>
       </div>
 
       <FilterBar
@@ -53,20 +64,22 @@ export default function TasksPage() {
       {isError && (
         <div className="state-box state-error">
           <p>Could not load tasks: {error.message}</p>
-          <button className="btn" onClick={() => refetch()}>Retry</button>
+          <button className="btn btn-ghost" onClick={() => refetch()}>Retry</button>
         </div>
       )}
       {data && (
         <>
-          {data.items.length === 0
-            ? <div className="state-box"><p>No tasks found. Add one to get started.</p></div>
-            : (
-              <ul className="task-list">
-                {data.items.map((t) => (
-                  <TaskCard key={t.id} task={t} onEdit={(task) => { setEditing(task); setFormOpen(true) }} />
-                ))}
-              </ul>
-            )}
+          {data.items.length === 0 ? (
+            <div className="state-box">
+              <p>No tasks found. Try adjusting your filters or click "Add Task" to create one.</p>
+            </div>
+          ) : (
+            <ul className="task-list">
+              {data.items.map((t) => (
+                <TaskCard key={t.id} task={t} onEdit={(task) => { setEditing(task); setFormOpen(true) }} />
+              ))}
+            </ul>
+          )}
           <Pagination page={data.page} pages={data.pages} total={data.total} isFetching={isFetching} onChange={setPage} />
         </>
       )}

@@ -2,7 +2,7 @@ import { useStats } from '../hooks/useTasks'
 import { Skeleton } from './Skeleton'
 
 export function StatsPanel() {
-  const { data, isLoading, isError, error, isFetching, dataUpdatedAt } = useStats()
+  const { data, isLoading, isError, error } = useStats()
 
   if (isLoading) {
     return (
@@ -34,12 +34,6 @@ export function StatsPanel() {
     <section className="stats-essential-section" aria-label="Essential Metrics">
       <div className="stats-live-bar">
         <span className="stats-section-label">Key Performance Indicators</span>
-        <div className="live-sync-indicator">
-          <span className={`live-pulse-dot ${isFetching ? 'is-fetching' : ''}`} />
-          <span>
-            {isFetching ? 'Syncing cache…' : `Live · Polled every 10s · ${new Date(dataUpdatedAt).toLocaleTimeString()}`}
-          </span>
-        </div>
       </div>
 
       <div className="stats-essential-grid">
@@ -99,10 +93,10 @@ export function StatsPanel() {
           </div>
           <div className="card-main-val">
             <strong>{data.completed_this_week}</strong>
-            <span className="card-unit">completed</span>
+            <span className="card-unit">resolved</span>
           </div>
           <div className="card-sub-info">
-            <span className="sub-caption">Real-time cache synchronization</span>
+            <span className="sub-caption">Rolling 7-day velocity</span>
           </div>
         </div>
       </div>

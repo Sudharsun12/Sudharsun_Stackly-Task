@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 
@@ -21,26 +21,19 @@ export function Navbar() {
         <span className="navbar-quote">✦ {DAILY_QUOTE} ✦</span>
       </div>
 
-      {/* Main nav bar */}
-      <div className="navbar-inner">
-        {/* Brand — left */}
-        <div className="brand-wrap">
+      {/* Main nav bar with centered brand and no dashboard/tasks links */}
+      <div className="navbar-inner navbar-inner-centered">
+        {/* Left balance spacer */}
+        <div className="navbar-left-spacer" aria-hidden="true" />
+
+        {/* Brand — Centered Team Task Board */}
+        <div className="brand-wrap brand-center">
           <span className="brand-icon" aria-hidden="true">⬡</span>
           <div className="brand-text">
-            <span className="brand-name">TeamTaskboard</span>
+            <span className="brand-name">Team Task Board</span>
             <span className="brand-tagline">Powered by TanStack Query</span>
           </div>
         </div>
-
-        {/* Nav links — centred */}
-        <nav className="navbar-center" aria-label="Main navigation">
-          <NavLink to="/dashboard">
-            <span className="nav-icon">▦</span> Dashboard
-          </NavLink>
-          <NavLink to="/tasks">
-            <span className="nav-icon">✓</span> Tasks
-          </NavLink>
-        </nav>
 
         {/* User + theme toggle + logout — right */}
         <div className="navbar-user">
