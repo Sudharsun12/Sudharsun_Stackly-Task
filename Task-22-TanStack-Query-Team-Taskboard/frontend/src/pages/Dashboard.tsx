@@ -16,7 +16,7 @@ export default function Dashboard() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | undefined>()
 
-  // Parallel Query: tasks list fires simultaneously with StatsPanel's useQuery
+  // Parallel Query: recent tasks fire concurrently with StatsPanel's useQuery
   const { data, isLoading, isError, error, refetch } = useTasks({
     status,
     priority,
@@ -42,46 +42,46 @@ export default function Dashboard() {
 
   return (
     <div className="page dashboard-page">
-      {/* Unique Welcome Hero Banner */}
-      <div className="dashboard-hero">
-        <div className="hero-content">
-          <div className="hero-tag">
-            <span className="hero-calendar-icon">📅</span>
-            <span>{todayFormatted}</span>
-            <span className="hero-dot">•</span>
-            <span className="hero-role-pill">{user?.role?.toUpperCase()} PORTAL</span>
+      {/* Clean, open executive greeting header (no redundant container card) */}
+      <header className="dashboard-header-open">
+        <div className="header-meta-row">
+          <span className="live-date-pill">📅 {todayFormatted}</span>
+          <span className="user-role-badge">{user?.role?.toUpperCase()} SESSION</span>
+        </div>
+        <div className="header-main-row">
+          <div>
+            <h1 className="header-greeting">
+              Welcome, <span className="text-highlight">{user?.name || 'Developer'}</span>
+            </h1>
+            <p className="header-subtext">
+              Real-time task synchronization powered by TanStack Query server state.
+            </p>
           </div>
-          <h1>
-            Hello, <span className="hero-highlight">{user?.name || 'Team Member'}</span> 👋
-          </h1>
-          <p className="hero-subtitle">
-            Here is your real-time operational overview. All data is cached and synchronized with TanStack Query.
-          </p>
+          <div className="header-actions">
+            <button className="btn btn-primary-add" onClick={() => setFormOpen(true)}>
+              <span>＋</span> New Task
+            </button>
+            <Link to="/tasks" className="btn btn-ghost">
+              All Tasks →
+            </Link>
+          </div>
         </div>
-        <div className="hero-actions">
-          <button className="btn btn-hero-add" onClick={() => setFormOpen(true)}>
-            <span className="btn-icon">＋</span> Add New Task
-          </button>
-          <Link to="/tasks" className="btn btn-ghost btn-hero-link">
-            Full Board →
-          </Link>
-        </div>
-      </div>
+      </header>
 
-      {/* Analytics KPI Section */}
+      {/* Essential 4-Metric Executive KPI Cards */}
       <StatsPanel />
 
-      {/* Recent Tasks Card */}
-      <div className="dashboard-tasks-section">
-        <div className="section-head">
-          <div className="section-title-wrap">
+      {/* Recent Tasks List (natural flow, no nested card container) */}
+      <section className="dashboard-tasks-flow" aria-label="Recent Tasks">
+        <div className="flow-header">
+          <div className="flow-title-wrap">
             <h2>Recent Tasks</h2>
-            <span className="section-count-badge">
-              {data ? `${data.items.length} of ${data.total} tasks` : 'Loading…'}
+            <span className="count-pill">
+              {data ? `${data.items.length} of ${data.total}` : 'Loading…'}
             </span>
           </div>
-          <Link to="/tasks" className="link-all-tasks">
-            View all with pagination →
+          <Link to="/tasks" className="link-view-all">
+            Open full board & filters →
           </Link>
         </div>
 
@@ -98,7 +98,7 @@ export default function Dashboard() {
         {isError && (
           <div className="state-box state-error">
             <p>Could not load tasks: {error.message}</p>
-            <button className="btn" onClick={() => refetch()}>
+            <button className="btn btn-sm" onClick={() => refetch()}>
               Retry
             </button>
           </div>
@@ -106,12 +106,12 @@ export default function Dashboard() {
 
         {data && (
           data.items.length === 0 ? (
-            <div className="state-box empty-tasks-state">
-              <span className="empty-state-icon">📋</span>
+            <div className="state-box empty-clean-state">
+              <span className="empty-icon">📂</span>
               <h3>No tasks found</h3>
-              <p>No tasks match the selected filters. Create one to get started.</p>
+              <p>No tasks match the selected filters. Add a new task to get started.</p>
               <button className="btn btn-sm" onClick={() => setFormOpen(true)}>
-                + Create Task
+                + Create First Task
               </button>
             </div>
           ) : (
@@ -122,7 +122,7 @@ export default function Dashboard() {
             </ul>
           )
         )}
-      </div>
+      </section>
 
       {formOpen && <TaskForm task={editingTask} onClose={closeForm} />}
     </div>

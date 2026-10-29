@@ -6,11 +6,12 @@ export function StatsPanel() {
 
   if (isLoading) {
     return (
-      <div className="stats-grid">
-        {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} className="stat-card skeleton-stat">
-            <Skeleton height={28} width={40} />
-            <Skeleton height={14} width={80} />
+      <div className="stats-essential-grid">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="essential-card skeleton-stat">
+            <Skeleton height={20} width={60} />
+            <Skeleton height={36} width={80} />
+            <Skeleton height={14} width={120} />
           </div>
         ))}
       </div>
@@ -20,84 +21,90 @@ export function StatsPanel() {
   if (isError) {
     return (
       <div className="state-box state-error">
-        <p>Could not load live metrics: {error.message}</p>
+        <p>Could not load metrics: {error.message}</p>
       </div>
     )
   }
 
   if (!data) return null
 
-  const items = [
-    {
-      label: 'Total Tasks',
-      value: data.total,
-      icon: '📊',
-      variant: 'primary',
-      description: 'Active workload',
-    },
-    {
-      label: 'To Do',
-      value: data.by_status.todo,
-      icon: '📌',
-      variant: 'todo',
-      description: 'Pending kickoff',
-    },
-    {
-      label: 'In Progress',
-      value: data.by_status.in_progress,
-      icon: '⚡',
-      variant: 'in-progress',
-      description: 'Active execution',
-    },
-    {
-      label: 'Completed',
-      value: data.by_status.done,
-      icon: '✅',
-      variant: 'done',
-      description: 'Successfully finished',
-    },
-    {
-      label: 'Overdue',
-      value: data.overdue,
-      icon: '🚨',
-      variant: data.overdue > 0 ? 'overdue' : 'neutral',
-      description: data.overdue > 0 ? 'Requires attention' : 'All deadlines on track',
-    },
-    {
-      label: 'Done This Week',
-      value: data.completed_this_week,
-      icon: '🏆',
-      variant: 'weekly',
-      description: 'Weekly momentum',
-    },
-  ]
+  const completionRate = data.total > 0 ? Math.round((data.by_status.done / data.total) * 100) : 0
 
   return (
-    <section className="stats-section" aria-label="Task Analytics">
-      <div className="stats-header">
-        <div className="stats-title-block">
-          <h3>Workplace Metrics</h3>
-          <p className="stats-sub">Auto-synchronized with backend server state</p>
-        </div>
-        <div className="stats-live-badge">
+    <section className="stats-essential-section" aria-label="Essential Metrics">
+      <div className="stats-live-bar">
+        <span className="stats-section-label">Key Performance Indicators</span>
+        <div className="live-sync-indicator">
           <span className={`live-pulse-dot ${isFetching ? 'is-fetching' : ''}`} />
-          <span>{isFetching ? 'Syncing…' : `Live (every 10s) · ${new Date(dataUpdatedAt).toLocaleTimeString()}`}</span>
+          <span>
+            {isFetching ? 'Syncing cache…' : `Live · Polled every 10s · ${new Date(dataUpdatedAt).toLocaleTimeString()}`}
+          </span>
         </div>
       </div>
 
-      <div className="stats-grid">
-        {items.map((stat) => (
-          <div key={stat.label} className={`stat-card stat-${stat.variant}`}>
-            <div className="stat-top">
-              <span className="stat-icon" aria-hidden="true">{stat.icon}</span>
-              <span className="stat-label">{stat.label}</span>
-            </div>
-            <div className="stat-value-wrap">
-              <strong className="stat-number">{stat.value}</strong>
-            </div>
-            <span className="stat-desc">{stat.description}</span>
+      <div className="stats-essential-grid">
+        {/* 1. Total Workload */}
+        <div className="essential-card card-total">
+          <div className="card-top">
+            <span className="card-label">Total Workload</span>
+            <span className="card-icon" aria-hidden="true">📊</span>
           </div>
-        ))}
+          <div className="card-main-val">
+            <strong>{data.total}</strong>
+            <span className="card-unit">tasks</span>
+          </div>
+          <div className="card-sub-info">
+            <span className="badge-pill">{data.by_status.in_progress} in progress</span>
+            <span className="badge-pill">{data.by_status.todo} to do</span>
+          </div>
+        </div>
+
+        {/* 2. Completed & Completion Rate */}
+        <div className="essential-card card-completed">
+          <div className="card-top">
+            <span className="card-label">Completed</span>
+            <span className="card-icon" aria-hidden="true">✅</span>
+          </div>
+          <div className="card-main-val">
+            <strong>{data.by_status.done}</strong>
+            <span className="card-rate-pill">{completionRate}% Done</span>
+          </div>
+          <div className="card-progress-bar" title={`${completionRate}% complete`}>
+            <div className="card-progress-fill" style={{ width: `${completionRate}%` }} />
+          </div>
+        </div>
+
+        {/* 3. Overdue Attention */}
+        <div className={`essential-card card-overdue ${data.overdue > 0 ? 'has-overdue' : ''}`}>
+          <div className="card-top">
+            <span className="card-label">Overdue Alerts</span>
+            <span className="card-icon" aria-hidden="true">🚨</span>
+          </div>
+          <div className="card-main-val">
+            <strong className={data.overdue > 0 ? 'text-danger' : 'text-good'}>{data.overdue}</strong>
+            <span className={`card-status-note ${data.overdue > 0 ? 'note-alert' : 'note-good'}`}>
+              {data.overdue > 0 ? 'Needs attention' : 'Deadlines on track'}
+            </span>
+          </div>
+          <div className="card-sub-info">
+            <span className="sub-caption">Auto-calculated by due dates</span>
+          </div>
+        </div>
+
+        {/* 4. Weekly Momentum */}
+        <div className="essential-card card-velocity">
+          <div className="card-top">
+            <span className="card-label">Closed This Week</span>
+            <span className="card-icon" aria-hidden="true">🚀</span>
+          </div>
+          <div className="card-main-val">
+            <strong>{data.completed_this_week}</strong>
+            <span className="card-unit">completed</span>
+          </div>
+          <div className="card-sub-info">
+            <span className="sub-caption">Real-time cache synchronization</span>
+          </div>
+        </div>
       </div>
     </section>
   )
