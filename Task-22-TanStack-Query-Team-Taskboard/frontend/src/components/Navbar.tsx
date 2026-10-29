@@ -1,10 +1,12 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 
 const DAILY_QUOTE = "Discipline is choosing between what you want now and what you want most."
 
 export function Navbar() {
   const { user, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
@@ -40,8 +42,22 @@ export function Navbar() {
           </NavLink>
         </nav>
 
-        {/* User + logout — right */}
+        {/* User + theme toggle + logout — right */}
         <div className="navbar-user">
+          <button
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label="Toggle theme mode"
+          >
+            <span className="theme-toggle-icon" aria-hidden="true">
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </span>
+            <span className="theme-toggle-label">
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </span>
+          </button>
+
           {user && (
             <div className="user-pill">
               <span className="user-avatar" aria-hidden="true">
@@ -53,6 +69,7 @@ export function Navbar() {
               </div>
             </div>
           )}
+
           <button className="btn btn-ghost btn-sm" onClick={handleLogout} aria-label="Log out">
             Log out
           </button>

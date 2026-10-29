@@ -28,22 +28,20 @@ export function Footer() {
               <span key={t} className="stack-badge">{t}</span>
             ))}
           </div>
-          <p className="footer-task-label">EDABIP Internship · Task 22</p>
+          <p className="footer-task-label">Enterprise Task Management</p>
         </div>
 
         {/* Right — credits */}
         <div className="footer-credits">
-          <p className="footer-author">Built by <strong>Sudharsun</strong></p>
-          <p className="footer-copy">© {year} EDABIP Internship</p>
-          <p className="footer-mentor">
-            Guided by <em>Muddigari Induu Reddy</em>
-          </p>
+          <p className="footer-author">Developed by <strong>Sudharsun A</strong></p>
+          <p className="footer-sub-role">Software Engineer</p>
+          <p className="footer-copy">© {year} All Rights Reserved.</p>
         </div>
       </div>
 
       {/* Bottom line */}
       <div className="footer-bottom">
-        <span>Made with ♥ during EDABIP · Task 22 of 30</span>
+        <span>© {year} Sudharsun A · All Rights Reserved.</span>
       </div>
     </footer>
   )
