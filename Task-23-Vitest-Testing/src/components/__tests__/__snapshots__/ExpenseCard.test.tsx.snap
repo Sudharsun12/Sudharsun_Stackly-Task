@@ -1,0 +1,80 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ExpenseCard — snapshot > matches the snapshot 1`] = `
+<div>
+  <div
+    class="expense-card"
+    data-testid="expense-card"
+    style="border-left-color: rgb(239, 68, 68);"
+  >
+    <div
+      class="card-header"
+    >
+      <div
+        class="card-title-row"
+      >
+        <span
+          aria-hidden="true"
+          class="category-icon"
+        >
+          🍽️
+        </span>
+        <div>
+          <h3
+            class="expense-title"
+          >
+            Lunch
+          </h3>
+          <span
+            class="category-badge"
+            style="background-color: rgb(239, 68, 68);"
+          >
+            Food
+          </span>
+        </div>
+      </div>
+      <div
+        class="amount-block"
+      >
+        <span
+          class="expense-amount"
+        >
+          ₹250.00
+        </span>
+      </div>
+    </div>
+    <div
+      class="card-footer"
+    >
+      <span
+        class="expense-date"
+      >
+        📅 
+        6 Aug 2025
+      </span>
+      <span
+        class="expense-note"
+      >
+        📝 
+        Office lunch
+      </span>
+      <div
+        class="card-actions"
+      >
+        <button
+          aria-label="Edit Lunch"
+          class="btn-edit"
+        >
+          ✏️ Edit
+        </button>
+        <button
+          aria-label="Delete Lunch"
+          class="btn-delete"
+        >
+          🗑️ Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
